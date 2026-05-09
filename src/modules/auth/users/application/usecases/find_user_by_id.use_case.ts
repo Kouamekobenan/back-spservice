@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { IUserRepository } from '../interfaces/user.interface.repository';
+import {type IUserRepository } from '../interfaces/user.interface.repository';
 import { User } from '../../domain/entities/user.entity';
 
 @Injectable()

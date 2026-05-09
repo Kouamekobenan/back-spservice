@@ -133,13 +133,13 @@ model User {
   id           String   @id @default(uuid())
   username     String   @unique
   passwordHash String   // Toujours stocker le hash, jamais le mot de passe
-   refreshToken      String?    
+  refreshToken      String?    
   name         String
+  phone String?
   role         Role     @default(CASHIER)
   pin          String?  // PIN à 4 chiffres pour déverrouillage rapide en caisse
   isActive     Boolean  @default(true)
   lastLoginAt  DateTime?
-
 
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id])

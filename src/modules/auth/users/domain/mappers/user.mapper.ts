@@ -3,39 +3,47 @@ import { User } from '../entities/user.entity';
 import { Prisma, User as UserPrisma } from '@prisma/client';
 import { UserRole as Role } from '../enums/role.enum';
 
-
 export class UserMapper {
   toPersitence(data: UserDto): Prisma.UserCreateInput {
     return {
+      username: data.username,
+      passwordHash: data.passwordHash,
       name: data.name,
-      email: data.email ?? '',
-      password: data.password,
-      phone: data.phone,
+      phone:data.phone,
       role: data.role,
+      pin:data.pin,
+      isActive:data.isActive,
+      lastLoginAt:data.lastLoginAt,
+      shop:{connect:{id:data.shopId}},
+      localId:data.localId
     };
   }
 
-  toAplication(Userdata: any & { totalScans?: number }): User {
+  toAplication(Userdata: any): User {
     return new User(
       Userdata.id,
+      Userdata.username,
+      Userdata.passwordHash,
+      Userdata.refreshToken,
+      Userdata.refreshToken,
       Userdata.name ?? '',
-      Userdata.email,
-      Userdata.password,
       Userdata.phone,
       Userdata.role as Role,
-      Userdata.refreshToken,
+      Userdata.pin,
+      Userdata.isActive,
+      Userdata.shopId,
+      Userdata.localId,
       Userdata.createdAt,
       Userdata.updatedAt,
-      Userdata._count?.scannedTickets ?? Userdata.totalScans ?? 0, // ✅
     );
   }
 
   toUpdateUser(userData: UserDto): any {
     return {
       name: userData.name,
-      email: userData.email,
-      password: userData.password,
-      phone: userData.phone,
+      // email: userData.email,
+      password: userData.passwordHash,
+      // phone: userData.phone,
       role: userData.role,
     };
   }

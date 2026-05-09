@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { IUserRepository } from '../users/application/interfaces/user.interface.repository';
+import { type IUserRepository } from '../users/application/interfaces/user.interface.repository';
 
 @Injectable()
 export class LogoutUserUseCase {

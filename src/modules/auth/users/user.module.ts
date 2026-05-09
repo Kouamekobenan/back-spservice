@@ -1,4 +1,4 @@
-import { Injectable, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { UserController } from './infrastructure/controllers/user.controller';
 import { UserRepository } from './infrastructure/repository/user.rpository';
 import { UserMapper } from './domain/mappers/user.mapper';
@@ -7,7 +7,6 @@ import { DeleteUserUseCase } from './application/usecases/delete.user.use-case';
 import { FindUserByIdUseCase } from './application/usecases/find_user_by_id.use_case';
 import { PaginateUserUseCase } from './application/usecases/paginate-user.usecase';
 import { FindUserByPhoneUsecase } from './application/usecases/finduserByphone.usecase';
-import { UpdateUserUseCase } from './application/usecases/update-user.usecase';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ControllerStatasUseCase } from './application/usecases/controller-stats.usecase';
 

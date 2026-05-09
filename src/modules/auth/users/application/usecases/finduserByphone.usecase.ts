@@ -1,5 +1,5 @@
 import { Inject } from '@nestjs/common';
-import { IUserRepository } from '../interfaces/user.interface.repository';
+import {type IUserRepository } from '../interfaces/user.interface.repository';
 
 export class FindUserByPhoneUsecase {
   constructor(

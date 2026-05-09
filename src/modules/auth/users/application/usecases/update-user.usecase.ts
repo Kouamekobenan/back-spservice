@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { UserDto } from "../dtos/user.dto";
 import { User } from "../../domain/entities/user.entity";
 import { AuthService } from "../../../services/auth.service";
-import { IUserRepository } from "../interfaces/user.interface.repository";
+import {type IUserRepository } from "../interfaces/user.interface.repository";
 @Injectable()
 export class UpdateUserUseCase{
     private readonly logger= new Logger(UpdateUserUseCase.name);
@@ -18,8 +18,8 @@ export class UpdateUserUseCase{
             if(!existingUser){
                 throw new Error('User not found');
             }
-            const password = dataUser.password ? await this.authservice.hashPassword(dataUser.password) : existingUser.getPassword();
-            const updatedUser = await this.userRepository.updateUser(id, { ...dataUser, password  });
+            const password = dataUser.passwordHash ? await this.authservice.hashPassword(dataUser.passwordHash) : existingUser.getPassword();
+            const updatedUser = await this.userRepository.updateUser(id, { ...dataUser, passwordHash:password  });
             return updatedUser;
         } catch (error) {
             this.logger.error('Failed to update user');

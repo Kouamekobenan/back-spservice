@@ -207,7 +207,7 @@ async function bootstrap() {
       // Mauvais credentials → on redemande
       res.setHeader(
         'WWW-Authenticate',
-        'Basic realm="Swagger Docs - Visa Culture"',
+        'Basic realm="Swagger Docs - SP SERVICE"',
       );
       return res.status(401).send('🔒 Identifiants incorrects.');
     },
@@ -218,9 +218,9 @@ async function bootstrap() {
   // ─────────────────────────────────────────────
   // Accessible à : http://localhost:{PORT}/api/v1/docs  (après authentification)
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Api `Visa For Culture`')
+    .setTitle('Api `SP SERVICE`')
     .setDescription(
-      'Visa Culture API: A robust backend for automated ticketing and lottery systems.',
+      'SP SERVICE API: A robust backend for automated SUPERETE  and other services.',
     )
     .setVersion('1.0.0')
     // Ajoute le support du Bearer JWT dans l'interface Swagger (bouton "Authorize")

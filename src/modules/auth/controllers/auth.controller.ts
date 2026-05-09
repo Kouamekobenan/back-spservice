@@ -30,8 +30,7 @@ import { LogoutUserUseCase } from '../usecases/logout-user.usecase';
 import { UpdateUserUseCase } from '../users/application/usecases/update-user.usecase';
 import { Public } from '../../../common/decorators/public.decorator';
 import { RefreshTokenUseCase } from '../usecases/refresh-token';
-import { ResetPasswordDto } from '../../otp/application/dtos/resetPassword.dto';
-import { ResetPasswordUsecase } from '../usecases/reset-password.usescase';
+// import { ResetPasswordDto } from '../../otp/application/dtos/resetPassword.dto';
 
 @ApiTags('Authentification')
 @ApiBearerAuth('access-token')
@@ -46,7 +45,6 @@ export class AuthController {
     private readonly logoutUserUseCase: LogoutUserUseCase,
     private readonly updateUserUseCase: UpdateUserUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
-    private readonly resetPasswordUsecase: ResetPasswordUsecase,
   ) {}
 
   // ========================================
@@ -101,7 +99,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Utilisateur existe déjà' })
   @ApiBody({ type: UserDto })
   async register(@Body() userData: UserDto) {
-    this.logger.log(`Registration attempt for: ${userData.email}`);
+    this.logger.log(`Registration attempt for: ${userData.pin}`);
     return await this.registerUseCase.execute(userData);
   }
   /**
@@ -220,11 +218,11 @@ export class AuthController {
     return await this.refreshTokenUseCase.execute(userId, refreshToken);
   }
   // 🔒 3. Reset Password (UseCase principal)
-  @Public()
-  @Post('reset-password')
-  @ApiOperation({ summary: 'Réinitialiser le mot de passe avec OTP' })
-  @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return await this.resetPasswordUsecase.execute(dto);
-  }
+  // @Public()
+  // @Post('reset-password')
+  // @ApiOperation({ summary: 'Réinitialiser le mot de passe avec OTP' })
+  // @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
+  // async resetPassword(@Body() dto: ResetPasswordDto) {
+  //   return await this.resetPasswordUsecase.execute(dto);
+  // }
 }

@@ -30,13 +30,12 @@ export class UserRepository implements IUserRepository {
       const user = await this.prisma.user.create({ data: createData });
       return this.mapper.toAplication(user);
     } catch (error) {
-      // ✅ Log l'erreur complète pour voir la vraie cause (Prisma, contrainte, etc.)
       this.logger.error(
         'Failed to create user',
         error instanceof Error ? error.stack : error,
       );
 
-      // ✅ Gérer les erreurs Prisma connues au lieu de tout écraser
+      // Gérer les erreurs Prisma connues au lieu de tout écraser
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         // P2002 = violation de contrainte unique (email déjà pris, etc.)
         if (error.code === 'P2002') {
@@ -54,21 +53,6 @@ export class UserRepository implements IUserRepository {
 
       // Erreur inconnue : on relance l'originale pour ne pas perdre le stack trace
       throw error;
-    }
-  }
-
-  async findByEmail(email: string): Promise<User | null> {
-    try {
-      const user = await this.prisma.user.findUnique({ where: { email } });
-
-      if (!user) {
-        return null; // ✅ Le service décide de l'erreur à lancer
-      }
-
-      return this.mapper.toAplication(user);
-    } catch (error) {
-      this.logger.error(`Failed to find user by email: ${email}`);
-      throw new InternalServerErrorException('Erreur lors de la recherche');
     }
   }
 
@@ -214,11 +198,7 @@ export class UserRepository implements IUserRepository {
           name: { contains: search.name.trim(), mode: 'insensitive' },
         });
       }
-      if (search.email?.trim()) {
-        orFilters.push({
-          email: { contains: search.email.trim(), mode: 'insensitive' },
-        });
-      }
+     
       if (search.phone?.trim()) {
         orFilters.push({
           phone: { contains: search.phone.trim(), mode: 'insensitive' },
@@ -248,7 +228,7 @@ export class UserRepository implements IUserRepository {
   async updatePassword(id: string, password: string): Promise<User> {
     const newPass = await this.prisma.user.update({
       where: { id },
-      data: { password },
+      data: { passwordHash:password  },
     });
     return this.mapper.toAplication(newPass);
   }
@@ -260,10 +240,10 @@ export class UserRepository implements IUserRepository {
     const skip = (page - 1) * limit;
     const [controllers, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: { role: 'CONTROLLER' },
+        where: { role: 'CASHIER' },
         select: {
           id: true,
-          email: true,
+          // email: true,
           name: true,
           phone: true,
           role: true,
@@ -277,7 +257,7 @@ export class UserRepository implements IUserRepository {
           createdAt: 'desc',
         },
       }),
-      this.prisma.user.count({ where: { role: 'CONTROLLER' } }),
+      this.prisma.user.count({ where: { role: 'CASHIER' } }),
     ]);
     const mappedData = controllers.map((s) => this.mapper.toAplication(s));
     return {

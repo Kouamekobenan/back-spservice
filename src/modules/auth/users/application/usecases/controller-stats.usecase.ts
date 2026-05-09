@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { IUserRepository } from '../interfaces/user.interface.repository';
+import {type IUserRepository } from '../interfaces/user.interface.repository';
 import { User } from '../../domain/entities/user.entity';
 import { PaginatedResponseRepository } from '../../../../../common/types/response-respository';
 

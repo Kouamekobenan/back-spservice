@@ -32,13 +32,13 @@ export class AuthService {
   // 🧩 Générer les deux tokens (access + refresh)
   async generateTokens(payload: {
     userId: string;
-    email?: string;
+    phone?: string;
     role: string;
   }) {
     const accessToken = this.jwtService.sign(
       {
         sub: payload.userId,
-        email: payload.email,
+        phone: payload.phone,
         role: payload.role,
       },
       {
@@ -50,7 +50,7 @@ export class AuthService {
     const refreshToken = this.jwtService.sign(
       {
         sub: payload.userId,
-        phone: payload.email,
+        phone: payload.phone,
         role: payload.role,
       },
       {

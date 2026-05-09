@@ -15,8 +15,6 @@ import { LogoutUserUseCase } from './usecases/logout-user.usecase';
 import { UpdateUserUseCase } from './users/application/usecases/update-user.usecase';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RefreshTokenUseCase } from './usecases/refresh-token';
-import { MailService } from '../../common/email/email.service';
-import { ResetPasswordUsecase } from './usecases/reset-password.usescase';
 
 @Module({
   imports: [
@@ -37,14 +35,12 @@ import { ResetPasswordUsecase } from './usecases/reset-password.usescase';
     AuthService,
     // use cases
     RegisterUserUseCase,
-    MailService,
     LoginUserUseCase,
     AuthMeUseCase,
     PrismaService,
     LogoutUserUseCase,
     UpdateUserUseCase,
     RefreshTokenUseCase,
-    ResetPasswordUsecase,
     // OtpMapper,
 
     {

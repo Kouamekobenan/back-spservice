@@ -4,7 +4,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { IUserRepository } from '../users/application/interfaces/user.interface.repository';
+import {type IUserRepository } from '../users/application/interfaces/user.interface.repository';
 import { User } from '../users/domain/entities/user.entity';
 @Injectable()
 export class AuthMeUseCase {

@@ -2,11 +2,10 @@ import { PaginatedResponseRepository } from '../../../../../common/types/respons
 import { User } from '../../domain/entities/user.entity';
 import { UserRole } from '../../domain/enums/role.enum';
 import { FilterUserDto } from '../dtos/filter-user.dto';
-import { UpdateDeviceTokenDto } from '../dtos/update-deviceToken';
 import { UserDto } from '../dtos/user.dto';
 export interface IUserRepository {
   createUser(dataUser: UserDto): Promise<User>;
-  findByEmail(email: string): Promise<User | null>;
+  // findByEmail(email: string): Promise<User | null>;
   getAllUsers(): Promise<User[]>;
   deleteUser(userId: string): Promise<void>;
   getUserById(id: string): Promise<User | null>;

@@ -3,32 +3,30 @@ import { UserRole } from '../enums/role.enum';
 export class User {
   constructor(
     private readonly id: string,
-    private name: string,
-    private email: string | null,
-    private password: string,
+    private username: string,
+    private passwordHash: string,
+    private refreshToken: string | null,
+    private name: string | null,
     private phone: string | null,
     private role: UserRole,
-    private refreshToken: string | null,
-    // private deviceToken: string | null,
+    private pin: string | null,
+    private isActive:boolean,
+    private lastLoginAt: Date | null,
+    private shopId:string, 
+    private localId:string,
     private createdAt: Date,
     private updatedAt: Date,
-    public totalScans?: number,
   ) {}
   // setter
   getId(): string {
     return this.id;
   }
-  get TotalScans() {
-    return this.totalScans || 0;
-  }
-  getEmail(): string | null {
-    return this.email;
-  }
+ 
   getRole(): UserRole {
     return this.role;
   }
   getPassword(): string {
-    return this.password;
+    return this.passwordHash;
   }
   getName(): string | null {
     return this.name;

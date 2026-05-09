@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
-import { IUserRepository } from '../users/application/interfaces/user.interface.repository';
+import {type IUserRepository } from '../users/application/interfaces/user.interface.repository';
 import { AuthService } from '../services/auth.service';
 
 @Injectable()
@@ -26,13 +26,13 @@ export class RefreshTokenUseCase {
     const payload = {
       userId: user.getId(),
       role: user.getRole(),
-      email: user.getEmail(),
+      phone: user.getPhone(),
     };
     // RefreshTokenUseCase.ts
     const tokens = await this.authService.generateTokens({
       userId: user.getId(),
       role: user.getRole(),
-      email: user.getEmail() ?? '',
+        phone: user.getPhone() ?? '',
     });
 
     const hashedRt = await this.authService.hashRefreshToken(
