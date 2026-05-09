@@ -40,32 +40,63 @@ Le système est conçu pour être **Multi-Boutiques**. Chaque boutique est une e
 - **Isolation des données** : Les produits, ventes et utilisateurs sont rattachés à une boutique spécifique.
 - **Paramètres personnalisés** : Chaque boutique définit sa devise (ex: XOF), ses taxes et son logo.
 - **Statut d'activité** : Possibilité d'activer ou désactiver une boutique instantanément.
-- **Audit indépendant** : Les journaux d'audit sont filtrés par boutique pour une traçabilité précise.
 
 ---
 
 ## 📂 Gestion des Catégories (Hiérarchie)
 
-Le module **Category** utilise une structure auto-référencée permettant de créer une arborescence infinie de catégories et sous-catégories.
+Le module **Category** permet une classification arborescente des produits.
 
 ### Fonctionnement Parent/Enfant :
-- **Catégorie Parente** : Une catégorie racine (ex: "Alimentation").
-- **Catégorie Enfant (Sous-catégorie)** : Une catégorie rattachée à un parent (ex: "Boissons" rattaché à "Alimentation").
-- **Héritage** : Un enfant peut lui-même devenir parent d'autres sous-catégories (ex: "Jus" rattaché à "Boissons").
-
 ```mermaid
 graph TD
     A[Alimentation] --> B[Boissons]
     A --> C[Conserves]
     B --> D[Jus de Fruits]
-    B --> E[Eaux Minérales]
     F[Quincaillerie] --> G[Outillage]
-    G --> H[Tournevis]
 ```
 
-**Caractéristiques techniques :**
-- `colorHex` : Personnalisation de la couleur pour l'affichage sur le POS.
-- `iconName` : Icône descriptive pour une navigation visuelle rapide.
+---
+
+## 📏 Gestion des Unités (Units)
+
+Le module **Unit** standardise les mesures pour tout le catalogue.
+
+### Points clés :
+- **Standardisation** : Définit les unités (Kg, Litre, Pièce, Carton, etc.).
+- **Conversion Visuelle** : Stockage des abréviations (pcs, kg, L) pour les reçus et étiquettes.
+- **Impact Inventaire** : Crucial pour les calculs de stock et les ventes au détail.
+
+---
+
+## 📦 Catalogue Produits (Products)
+
+Le module **Product** est le noyau central de l'application. Il lie toutes les entités pour permettre la vente et la gestion de stock.
+
+### Architecture du Produit :
+```mermaid
+erDiagram
+    SHOP ||--o{ PRODUCT : "possède"
+    CATEGORY ||--o{ PRODUCT : "classifie"
+    UNIT ||--o{ PRODUCT : "mesure"
+    PRODUCT ||--o{ STOCK_MOVEMENT : "génère"
+    PRODUCT ||--o{ SALE_ITEM : "est vendu via"
+    PRODUCT {
+        string id
+        string name
+        string barcode
+        decimal buyingPrice
+        decimal sellingPrice
+        decimal stockQty
+        json metadata
+    }
+```
+
+### Logique Métier Avancée :
+- **Isolation Critique** : Un code-barres est unique **par boutique**. Cela permet à deux commerces différents d'utiliser le même backend pour leurs propres stocks.
+- **Seuils d'Alerte** : Chaque produit possède un `minStockQty`. Le backend expose des endpoints d'alerte pour notifier le frontend des ruptures imminentes.
+- **Métadonnées Flexibles** : Le champ `metadata` permet d'ajouter des spécificités métier (ex: type de gaz, poids net, dimensions) sans changer la structure de la base de données.
+- **Valorisation du Stock** : Calcul automatique des marges et de la valeur totale du stock.
 
 ---
 
@@ -76,43 +107,19 @@ graph TD
 - **ORM** : [Prisma](https://www.prisma.io/)
 - **Base de Données** : PostgreSQL
 - **Documentation** : Swagger / OpenAPI
-- **Sécurité** : JWT (Passport), BcryptJS, Helmet
 
 ---
 
 ## 🚀 Installation & Démarrage
 
-### Configuration
-1. Clonez le dépôt.
-2. Copiez le fichier `.env.example` en `.env` et configurez vos variables.
-3. Installez les dépendances :
 ```bash
 npm install
-```
-
-### Base de données
-```bash
 npx prisma generate
 npx prisma db push
-```
-
-### Exécution
-```bash
-# Développement (Watch mode)
 npm run start:dev
-
-# Production
-npm run build
-npm run start:prod
 ```
 
 ---
 
 ## 📝 Documentation API
-Une fois le serveur lancé, la documentation interactive Swagger est disponible à l'adresse :
-`http://localhost:3000/api/docs` (ou le port configuré).
-
----
-
-## 🛡️ License
-Ce projet est sous licence propriétaire. Tous droits réservés.
+Une fois le serveur lancé, accédez à Swagger : `http://localhost:3000/api/docs`
