@@ -26,7 +26,7 @@ export class PrismaSaleRepository implements ISaleRepository {
         },
       },
     });
-    return `VTE-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+    return `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
   }
 
   async create(data: CreateSaleDto, receiptNumber: string): Promise<Sale> {

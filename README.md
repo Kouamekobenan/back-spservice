@@ -148,6 +148,45 @@ Le module **CreditPayment** gère le recouvrement des dettes et assure l'intégr
 
 ---
 
+## 🤝 Gestion des Fournisseurs (Suppliers)
+
+Le module **Supplier** centralise la base de données des partenaires commerciaux pour optimiser la chaîne d'approvisionnement.
+
+### Fonctionnalités Clés :
+- **Répertoire de Contact** : Centralisation des coordonnées (nom, contact direct, téléphone, email, adresse).
+- **Historique des Approvisionnements** : Liaison directe avec les bons de commande (`PurchaseOrder`).
+- **Gestion du Statut** : Activation ou désactivation des fournisseurs pour le filtrage lors des commandes.
+- **Notes Stratégiques** : Suivi des particularités de chaque fournisseur (conditions de paiement, délais habituels).
+- **Architecture DDD** : Entièrement implémenté selon les principes DDD pour une intégration fluide avec les modules de stock.
+
+---
+
+## 📦 Bons de Commande & Réception (Purchase Orders)
+
+Le module **PurchaseOrder** gère l'approvisionnement des stocks et la traçabilité des entrées de marchandises.
+
+### Cycle de vie d'une Commande :
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT : Création
+    DRAFT --> SENT : Envoyé au fournisseur
+    SENT --> PARTIALLY_RECEIVED : Réception partielle
+    SENT --> RECEIVED : Réception totale
+    PARTIALLY_RECEIVED --> RECEIVED : Fin de réception
+    SENT --> CANCELLED : Annulation
+    DRAFT --> CANCELLED : Annulation
+    RECEIVED --> [*]
+```
+
+### Fonctionnalités Clés :
+- **Suivi de Statut** : Gestion rigoureuse des états (DRAFT, SENT, PARTIALLY_RECEIVED, RECEIVED, CANCELLED).
+- **Réception Intelligente** : Mise à jour automatique du stock physique et du prix d'achat lors de la réception.
+- **Traçabilité Totale** : Chaque réception génère un `StockMovement` (PURCHASE) lié au bon de commande pour l'audit.
+- **Précision Financière** : Calcul automatique des totaux basés sur les coûts unitaires négociés.
+- **Transactions Atomiques** : Garantie de cohérence (soit tout est mis à jour - stock + statut + mouvement - soit rien).
+
+---
+
 ## 🏧 Sessions de Caisse (Cash Sessions)
 
 Le module **CashSession** assure le contrôle rigoureux des flux de trésorerie quotidiens et la responsabilité des caissiers.
