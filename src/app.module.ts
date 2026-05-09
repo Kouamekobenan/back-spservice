@@ -11,6 +11,10 @@ import { UnitModule } from './modules/unit/unit.module.js';
 import { ProductModule } from './modules/product/product.module.js';
 import { ProductComponentModule } from './modules/product-component/product-component.module.js';
 import { ProductBatchModule } from './modules/product-batch/product-batch.module.js';
+import { CustomerModule } from './modules/customer/customer.module.js';
+import { CreditPaymentModule } from './modules/credit-payment/credit-payment.module.js';
+import { CashSessionModule } from './modules/cash-session/cash-session.module.js';
+import { SaleModule } from './modules/sale/sale.module.js';
 
 @Module({
   imports: [
@@ -27,6 +31,10 @@ import { ProductBatchModule } from './modules/product-batch/product-batch.module
     ProductModule,
     ProductComponentModule,
     ProductBatchModule,
+    CustomerModule,
+    CreditPaymentModule,
+    CashSessionModule,
+    SaleModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

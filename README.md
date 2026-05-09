@@ -124,6 +124,86 @@ Le module **ProductBatch** assure la traçabilité et la sécurité alimentaire/
 
 ---
 
+## 👥 Gestion des Clients (Customers)
+
+Le module **Customer** centralise la gestion de la relation client et le suivi des balances financières.
+
+### Fonctionnalités Clés :
+- **Suivi des Dettes (Balance)** : Monitoring en temps réel de la dette totale (`totalDebt`) pour chaque client.
+- **Gestion des Risques** : Définition de plafonds de crédit (`creditLimit`) pour limiter l'exposition financière.
+- **Support Offline-First** : Création et modification de clients en mode hors-ligne avec synchronisation intelligente.
+- **Fiche Client Complète** : Centralisation des coordonnées (téléphone, email, adresse) et historique des transactions.
+
+---
+
+## 💳 Règlements de Crédits (Credit Payments)
+
+Le module **CreditPayment** gère le recouvrement des dettes et assure l'intégrité des flux financiers.
+
+### Fonctionnalités Clés :
+- **Transactions Atomiques** : Chaque règlement met à jour instantanément la dette du client via des transactions de base de données sécurisées.
+- **Multi-Modes de Paiement** : Support complet pour les règlements en espèces, Mobile Money (avec référence) et carte bancaire.
+- **Traçabilité & Audit** : Archivage précis de chaque versement avec notes explicatives pour un rapprochement comptable facilité.
+- **Files d'Attente de Sync** : Les paiements encaissés hors-ligne sont mis en file d'attente et synchronisés dès le retour de la connexion.
+
+---
+
+## 🏧 Sessions de Caisse (Cash Sessions)
+
+Le module **CashSession** assure le contrôle rigoureux des flux de trésorerie quotidiens et la responsabilité des caissiers.
+
+### Fonctionnalités Clés :
+- **Réconciliation de Caisse** : Calcul automatique du solde attendu (`expectedBalance`) basé sur les ventes réelles par rapport au fond de caisse initial.
+- **Suivi des Écarts** : Identification immédiate des surplus ou manquants de caisse (`difference`) lors de la clôture pour un audit simplifié.
+- **Gestion de la Responsabilité** : Verrouillage logique empêchant un opérateur d'ouvrir plusieurs sessions simultanées, garantissant une traçabilité sans faille.
+- **Intégration des Ventes** : Liaison directe de chaque transaction de vente à une session spécifique pour un rapport financier consolidé.
+
+---
+
+## 🛒 Gestion des Ventes (Sales)
+
+Le module **Sale** est le moteur transactionnel central qui orchestre les stocks, les finances et la relation client.
+
+### Fonctionnalités Clés :
+- **Paniers Multi-Articles** : Traitement de paniers complexes avec prix unitaires et remises spécifiques par ligne.
+- **Paiements Mixtes** : Support de plusieurs modes de règlement (Espèces, Carte, Mobile Money, Crédit) pour une même vente.
+- **Synchronisation Atomique du Stock** : Réduction en temps réel des stocks et traçabilité de chaque mouvement via `StockMovement`.
+- **Intégration de la Dette** : Mise à jour automatique de la balance client en cas de paiement à crédit.
+- **Facturation Intelligente** : Génération de numéros de reçus uniques et normalisés (ex: `VTE-20260510-0001`).
+
+### Flux de Communication d'une Vente :
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant SC as SaleController
+    participant UC as CreateSaleUseCase
+    participant SR as SaleRepository
+    participant DB as Prisma/Database
+
+    FE->>SC: POST /sales (CreateSaleDto)
+    SC->>UC: execute(dto)
+    UC->>SR: generateReceiptNumber(shopId)
+    SR->>DB: count today's sales
+    DB-->>SR: count
+    SR-->>UC: receiptNumber
+    UC->>SR: create(dto, receiptNumber)
+    Note over SR,DB: DEBUT TRANSACTION (Atomique)
+    SR->>DB: Créer l'enregistrement Sale
+    loop chaque article
+        SR->>DB: Décrémenter Stock Produit
+        SR->>DB: Créer StockMovement (SALE)
+    end
+    alt Paiement à Crédit
+        SR->>DB: Incrémenter Dette Client
+    end
+    Note over SR,DB: FIN TRANSACTION (Commit)
+    SR-->>UC: Entité Sale
+    UC-->>SC: Entité Sale
+    SC-->>FE: 201 Created (Détails de la vente)
+```
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)
@@ -146,4 +226,4 @@ npm run start:dev
 ---
 
 ## 📝 Documentation API
-Une fois le serveur lancé, accédez à Swagger : `http://localhost:3000/api/v1/docs`
+Une fois le serveur lancé, accédez à Swagger : `http://localhost:3001/api/v1/docs`
