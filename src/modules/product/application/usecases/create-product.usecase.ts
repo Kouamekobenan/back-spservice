@@ -11,6 +11,10 @@ export class CreateProductUseCase {
   ) {}
 
   async execute(data: CreateProductDto): Promise<ProductResponseDto> {
+    // Générer un code-barres unique s'il n'est pas fourni
+    if (!data.barcode) {
+      data.barcode = await this.productRepository.generateUniqueBarcode(data.shopId);
+    }
     // Vérifier l'unicité du code-barres dans la boutique
     if (data.barcode) {
       const existingBarcode = await this.productRepository.findByBarcode(data.barcode, data.shopId);
@@ -18,7 +22,6 @@ export class CreateProductUseCase {
         throw new ConflictException(`Un produit avec le code-barres ${data.barcode} existe déjà dans cette boutique.`);
       }
     }
-
     // Vérifier l'unicité du SKU dans la boutique
     if (data.sku) {
       const existingSku = await this.productRepository.findBySku(data.sku, data.shopId);

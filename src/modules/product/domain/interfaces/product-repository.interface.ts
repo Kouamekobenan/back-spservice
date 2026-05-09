@@ -1,8 +1,8 @@
 import { Product } from '../entities/product.entity.js';
 import { CreateProductDto } from '../../application/dtos/create-product.dto.js';
-import { UpdateProductDto } from '../../application/dtos/update-product.dto.js';
-import { ProductQueryDto } from '../../application/dtos/product-query.dto.js';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
+import { ProductQueryDto } from '../../application/dtos/product-query.dto.js';
+import { UpdateProductDto } from '../../application/dtos/update-product.dto.js';
 
 export interface IProductRepository {
   create(data: CreateProductDto): Promise<Product>;
@@ -14,4 +14,5 @@ export interface IProductRepository {
   findBySku(sku: string, shopId: string): Promise<Product | null>;
   getLowStockAlerts(shopId: string): Promise<Product[]>;
   updateStock(id: string, quantity: number): Promise<Product>;
+   generateUniqueBarcode(shopId: string): Promise<string>
 }

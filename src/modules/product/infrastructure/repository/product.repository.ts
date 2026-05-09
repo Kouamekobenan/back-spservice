@@ -145,7 +145,26 @@ export class ProductRepository implements IProductRepository {
     });
     return products.map((p) => this.mapper.toDomain(p));
   }
-
+async generateUniqueBarcode(shopId: string): Promise<string> {
+  let isUnique = false;
+  let barcode = '';
+  
+  while (!isUnique) {
+    // Générer un code-barres aléatoire (ex: 12 chiffres)
+    barcode = Math.random().toString(36).substring(2, 14).toUpperCase();
+    
+    // Vérifier si ce code-barres existe déjà dans la boutique
+    const existingProduct = await this.prisma.product.findFirst({
+      where: { barcode, shopId }
+    });
+    
+    if (!existingProduct) {
+      isUnique = true;
+    }
+  }
+  
+  return barcode;
+} 
   async updateStock(id: string, quantity: number): Promise<Product> {
     const product = await this.prisma.product.update({
       where: { id },

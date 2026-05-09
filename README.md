@@ -122,4 +122,4 @@ npm run start:dev
 ---
 
 ## 📝 Documentation API
-Une fois le serveur lancé, accédez à Swagger : `http://localhost:3000/api/docs`
+Une fois le serveur lancé, accédez à Swagger : `http://localhost:3000/api/v1/docs`
