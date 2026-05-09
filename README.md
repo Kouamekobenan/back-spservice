@@ -32,6 +32,18 @@ Le système gère 5 niveaux d'accès distincts pour assurer une sécurité maxim
 
 ---
 
+## 🏢 Gestion Multi-Boutiques (Shops)
+
+Le système est conçu pour être **Multi-Boutiques**. Chaque boutique est une entité isolée avec ses propres configurations, stocks et personnels.
+
+### Caractéristiques principales :
+- **Isolation des données** : Les produits, ventes et utilisateurs sont rattachés à une boutique spécifique.
+- **Paramètres personnalisés** : Chaque boutique définit sa devise (ex: XOF), ses taxes et son logo.
+- **Statut d'activité** : Possibilité d'activer ou désactiver une boutique instantanément.
+- **Audit indépendant** : Les journaux d'audit sont filtrés par boutique pour une traçabilité précise.
+
+---
+
 ## 📂 Gestion des Catégories (Hiérarchie)
 
 Le module **Category** utilise une structure auto-référencée permettant de créer une arborescence infinie de catégories et sous-catégories.
