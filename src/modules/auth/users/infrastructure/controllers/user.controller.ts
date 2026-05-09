@@ -31,7 +31,6 @@ import { JwtAuthGuard } from '../../../guards/jwt-auth.guard';
 import { RolesGuard } from '../../../guards/role.guard';
 import { Public } from '../../../../../common/decorators/public.decorator';
 import { ControllerStatasUseCase } from '../../application/usecases/controller-stats.usecase';
-
 @ApiTags('users')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -65,7 +64,6 @@ export class UserController {
     this.logger.log(`Searching user by phone: ${phone}`);
     return await this.findUserByPhoneUsecase.execute(phone);
   }
-
   @Public()
   @Get('paginate')
   @ApiOperation({ summary: 'Paginer les utilisateurs avec des filtres' })
@@ -125,7 +123,7 @@ export class UserController {
 @Public()
   @Get("/controller/stats")
   @ApiOperation({
-    summary: 'Récupérer les statistiques de performance des contrôleurs',
+    summary: 'Récupérer les statistiques de performance d\'une cassière',
     description:
       'Retourne une liste paginée des contrôleurs avec le nombre total de tickets scannés par chacun.',
   })

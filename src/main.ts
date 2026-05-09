@@ -37,10 +37,9 @@ async function bootstrap() {
   // Tous les endpoints seront automatiquement préfixés par cette valeur
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
 
-  // ✅ FIX : application du préfixe global à TOUS les endpoints
+  //  FIX : application du préfixe global à TOUS les endpoints
   // Sans cette ligne, le préfixe n'était utilisé que pour Swagger mais PAS pour les routes
   app.setGlobalPrefix(apiPrefix);
-
   // ─────────────────────────────────────────────
   // 3. CONFIGURATION CORS
   // ─────────────────────────────────────────────
@@ -49,6 +48,7 @@ async function bootstrap() {
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
+    'https://stockpro-delta.vercel.app',
   ];
 
   if (process.env.NODE_ENV !== 'production') {
@@ -126,6 +126,7 @@ async function bootstrap() {
               "'self'",
               'http://localhost:3000',
               'http://127.0.0.1:3000',
+              'https://stockpro-delta.vercel.app',
             ],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],

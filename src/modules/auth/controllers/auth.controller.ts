@@ -127,9 +127,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Identifiants invalides' })
   @ApiBody({ type: LoginDto })
   async login(@Body() loginDto: LoginDto) {
-    this.logger.log(`Login attempt for phone: ${loginDto.email}`);
+    this.logger.log(`Login attempt for phone: ${loginDto.phone}`);
     return await this.loginUserUseCase.execute(
-      loginDto.email,
+      loginDto.phone,
       loginDto.password,
     );
   }

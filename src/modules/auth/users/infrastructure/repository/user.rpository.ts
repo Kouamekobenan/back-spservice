@@ -246,10 +246,7 @@ export class UserRepository implements IUserRepository {
           // email: true,
           name: true,
           phone: true,
-          role: true,
-          // _count: {
-          //   select: { scannedTickets: true },
-          // },
+          role: true, 
         },
         skip,
         take: limit,
