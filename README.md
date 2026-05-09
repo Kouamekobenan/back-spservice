@@ -100,6 +100,30 @@ erDiagram
 
 ---
 
+## 📦 Kits & Produits Composés (Product Components)
+
+Le module **ProductComponent** permet de créer des offres groupées ou des produits transformés à partir de composants de base.
+
+### Fonctionnalités :
+- **Composition Flexible** : Liez plusieurs produits (composants) à un produit maître (kit).
+- **Gestion des Quantités** : Définissez précisément la quantité de chaque composant utilisée dans le kit.
+- **Réduction de Stock** : (Prévu) La vente d'un kit peut automatiquement déduire les stocks de ses composants.
+- **Transparence** : Visualisation complète de la structure d'un kit pour le frontend.
+
+---
+
+## 📅 Gestion des Lots & Péremption (Product Batches)
+
+Le module **ProductBatch** assure la traçabilité et la sécurité alimentaire/sanitaire du catalogue.
+
+### Fonctionnalités :
+- **Suivi par Lot** : Chaque arrivage est identifié par un numéro de lot unique.
+- **Gestion des Dates (DLC/DLUO)** : Surveillance automatique des dates d'expiration.
+- **Alertes Proactives** : Extraction des lots arrivant à échéance pour éviter les pertes.
+- **Coûts Précis** : Permet de suivre le prix d'achat exact de chaque lot pour une comptabilité rigoureuse.
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)

@@ -9,6 +9,8 @@ import { ShopModule } from './modules/shop/shop.module.js';
 import { CategoryModule } from './modules/category/category.module.js';
 import { UnitModule } from './modules/unit/unit.module.js';
 import { ProductModule } from './modules/product/product.module.js';
+import { ProductComponentModule } from './modules/product-component/product-component.module.js';
+import { ProductBatchModule } from './modules/product-batch/product-batch.module.js';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ProductModule } from './modules/product/product.module.js';
     CategoryModule,
     UnitModule,
     ProductModule,
+    ProductComponentModule,
+    ProductBatchModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
