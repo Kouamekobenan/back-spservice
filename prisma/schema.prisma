@@ -678,7 +678,7 @@ model SyncQueue {
 
 model ShopSetting {
   id      String @id @default(uuid())
-  shopId  String @unique
+  shopId  String?
   key     String
   value   String
   group   String @default("general") // "receipt", "tax", "sync", "display"

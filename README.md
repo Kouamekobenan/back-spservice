@@ -294,6 +294,19 @@ Le module **Expense** permet un suivi rigoureux des sorties de trésorerie opér
 
 ---
 
+## ⚙️ Configuration des Boutiques (Shop Settings)
+
+Le module **ShopSetting** permet de personnaliser le comportement et l'apparence de chaque boutique de manière dynamique.
+
+### Fonctionnalités Clés :
+- **Clé-Valeur Flexible** : Stockage de paramètres sous forme de paires `key` / `value` (ex: `receipt_footer`, `tax_rate`, `low_stock_threshold`).
+- **Groupement Logique** : Organisation des paramètres par groupes (`receipt`, `tax`, `sync`, `display`) pour une gestion simplifiée.
+- **Upsert Intelligent** : Un seul endpoint pour créer ou mettre à jour un paramètre, évitant les erreurs de doublons.
+- **Support Frontend** : Permet au frontend de charger dynamiquement les configurations spécifiques à la boutique sélectionnée (logo, messages de bienvenue sur les reçus, etc.).
+- **Isolation Totale** : Chaque boutique gère ses propres paramètres sans interférer avec les autres boutiques du réseau.
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)

@@ -19,6 +19,7 @@ import { SupplierModule } from './modules/supplier/supplier.module.js';
 import { PurchaseOrderModule } from './modules/purchase-order/purchase-order.module.js';
 import { StockTransferModule } from './modules/stock-transfer/stock-transfer.module.js';
 import { ExpenseModule } from './modules/expense/expense.module.js';
+import { ShopSettingModule } from './modules/shop-setting/shop-setting.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ExpenseModule } from './modules/expense/expense.module.js';
     PurchaseOrderModule,
     StockTransferModule,
     ExpenseModule,
+    ShopSettingModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
