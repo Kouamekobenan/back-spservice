@@ -243,6 +243,53 @@ sequenceDiagram
 
 ---
 
+## 🚚 Transferts de Stock (Stock Transfers)
+
+Le module **StockTransfer** gère le mouvement de marchandises entre différentes boutiques du réseau, assurant une traçabilité parfaite et la cohérence des inventaires.
+
+### Fonctionnalités Clés :
+- **Flux de Validation en 2 Étapes** : Un transfert est créé en `PENDING` (sortie de stock boutique source) puis confirmé en `COMPLETED` (entrée de stock boutique destination).
+- **Auto-Clonage de Produits** : Si un produit transféré n'existe pas encore dans la boutique de destination (recherche par SKU/Barcode), le système le crée automatiquement pour fluidifier le processus.
+- **Annulation Sécurisée** : L'annulation d'un transfert réintègre instantanément les produits dans la boutique d'origine avec un mouvement d'ajustement.
+- **Traçabilité Multi-Boutiques** : Chaque étape génère des `StockMovement` spécifiques (`TRANSFER_OUT`, `TRANSFER_IN`, `ADJUSTMENT`) liés à l'ID du transfert.
+
+### Cycle de vie d'un Transfert :
+```mermaid
+sequenceDiagram
+    participant S1 as Boutique Source
+    participant ST as StockTransfer Module
+    participant S2 as Boutique Destination
+
+    S1->>ST: Créer Transfert (PENDING)
+    Note over ST: Stock Source décrémenté (-)
+    Note over ST: Movement TRANSFER_OUT créé
+    
+    alt Acceptation
+        S2->>ST: Confirmer Réception (COMPLETED)
+        Note over ST: Stock Destination incrémenté (+)
+        Note over ST: Movement TRANSFER_IN créé
+    else Refus/Annulation
+        S1->>ST: Annuler Transfert (CANCELLED)
+        Note over ST: Stock Source réintégré (+)
+        Note over ST: Movement ADJUSTMENT créé
+    end
+```
+
+---
+
+## 💸 Gestion des Dépenses (Expenses)
+
+Le module **Expense** permet un suivi rigoureux des sorties de trésorerie opérationnelles de chaque boutique (Loyer, Factures, Salaires, etc.).
+
+### Fonctionnalités Clés :
+- **Catégorisation Standardisée** : Classification par types (RENT, UTILITIES, SALARY, etc.) pour des rapports financiers précis.
+- **Gestion des Récurrences** : Possibilité de marquer des dépenses comme récurrentes avec un jour spécifique du mois.
+- **Justificatifs Numériques** : Support pour l'enregistrement d'URLs vers des preuves d'achat ou factures (receiptUrl).
+- **Filtrage Avancé** : Analyse des dépenses par boutique, catégorie et période temporelle.
+- **Architecture DDD** : Implémentation robuste garantissant une séparation nette entre la logique métier et la persistence Prisma.
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)

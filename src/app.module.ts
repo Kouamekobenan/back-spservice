@@ -17,6 +17,8 @@ import { CashSessionModule } from './modules/cash-session/cash-session.module.js
 import { SaleModule } from './modules/sale/sale.module.js';
 import { SupplierModule } from './modules/supplier/supplier.module.js';
 import { PurchaseOrderModule } from './modules/purchase-order/purchase-order.module.js';
+import { StockTransferModule } from './modules/stock-transfer/stock-transfer.module.js';
+import { ExpenseModule } from './modules/expense/expense.module.js';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { PurchaseOrderModule } from './modules/purchase-order/purchase-order.mod
     SaleModule,
     SupplierModule,
     PurchaseOrderModule,
+    StockTransferModule,
+    ExpenseModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
