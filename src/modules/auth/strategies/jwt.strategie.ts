@@ -17,7 +17,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
   async validate(payload: any) {
-    console.log('validate', payload);
-    return { userId: payload.sub, phone: payload.phone, role: payload.role };
+    // Récupérer les accès boutiques de l'utilisateur
+    const userAccesses = await this.prisma.userShopAccess.findMany({
+      where: { userId: payload.sub },
+      select: { shopId: true }
+    });
+
+    return { 
+      userId: payload.sub, 
+      phone: payload.phone, 
+      role: payload.role,
+      shopAccesses: userAccesses.map(a => a.shopId) // Liste des IDs de boutiques autorisées
+    };
   }
 }

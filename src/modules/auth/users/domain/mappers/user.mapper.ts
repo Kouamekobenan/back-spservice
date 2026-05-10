@@ -1,50 +1,54 @@
-import { UserDto } from '../../application/dtos/user.dto';
-import { User } from '../entities/user.entity';
-import { Prisma, User as UserPrisma } from '@prisma/client';
-import { UserRole as Role } from '../enums/role.enum';
+import { UserDto } from '../../application/dtos/user.dto.js';
+import { User, UserShopAccess } from '../entities/user.entity.js';
+import { Prisma, User as UserPrisma, UserShopAccess as PrismaShopAccess } from '@prisma/client';
+import { UserRole as Role } from '../enums/role.enum.js';
 
 export class UserMapper {
-  toPersitence(data: UserDto): Prisma.UserCreateInput {
+  toPersistence(data: UserDto): Prisma.UserCreateInput {
     return {
+      id: data.id,
       username: data.username,
       passwordHash: data.passwordHash,
       name: data.name,
-      phone:data.phone,
+      phone: data.phone,
       role: data.role,
-      pin:data.pin,
-      isActive:data.isActive,
-      lastLoginAt:data.lastLoginAt,
-      shop:{connect:{id:data.shopId}},
-      localId:data.localId
+      pin: data.pin,
+      isActive: data.isActive,
+      // lastLoginAt: data.lastLoginAt,
+      localId: data.localId
     };
   }
 
-  toAplication(Userdata: any): User {
+  toApplication(userData: any): User {
+    const shopAccesses = (userData.shopAccesses || []).map(
+      (access: any) => new UserShopAccess(access.shopId, access.roleInShop as Role)
+    );
+
     return new User(
-      Userdata.id,
-      Userdata.username,
-      Userdata.passwordHash,
-      Userdata.refreshToken,
-      Userdata.refreshToken,
-      Userdata.name ?? '',
-      Userdata.phone,
-      Userdata.role as Role,
-      Userdata.pin,
-      Userdata.isActive,
-      Userdata.shopId,
-      Userdata.localId,
-      Userdata.createdAt,
-      Userdata.updatedAt,
+      userData.id,
+      userData.username,
+      userData.passwordHash,
+      userData.refreshToken,
+      userData.name,
+      userData.phone,
+      userData.role as Role,
+      userData.pin,
+      userData.isActive,
+      userData.lastLoginAt,
+      shopAccesses,
+      userData.localId,
+      userData.createdAt,
+      userData.updatedAt,
     );
   }
 
   toUpdateUser(userData: UserDto): any {
     return {
       name: userData.name,
-      // email: userData.email,
-      password: userData.passwordHash,
-      // phone: userData.phone,
+      passwordHash: userData.passwordHash,
       role: userData.role,
+      phone: userData.phone,
+      isActive: userData.isActive,
     };
   }
 }

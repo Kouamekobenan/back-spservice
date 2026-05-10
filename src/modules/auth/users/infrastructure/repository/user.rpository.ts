@@ -26,32 +26,17 @@ export class UserRepository implements IUserRepository {
 
   async createUser(dataUser: UserDto): Promise<User> {
     try {
-      const createData = this.mapper.toPersitence(dataUser);
-      const user = await this.prisma.user.create({ data: createData });
-      return this.mapper.toAplication(user);
+      const createData = this.mapper.toPersistence(dataUser);
+      const user = await this.prisma.user.create({ 
+        data: createData,
+        include: { shopAccesses: true }
+      });
+      return this.mapper.toApplication(user);
     } catch (error) {
-      this.logger.error(
-        'Failed to create user',
-        error instanceof Error ? error.stack : error,
-      );
-
-      // Gérer les erreurs Prisma connues au lieu de tout écraser
+      this.logger.error('Failed to create user', error instanceof Error ? error.stack : error);
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        // P2002 = violation de contrainte unique (email déjà pris, etc.)
-        if (error.code === 'P2002') {
-          throw new ConflictException(
-            'Un utilisateur avec cet email existe déjà.',
-          );
-        }
-        // P2003 = violation de clé étrangère
-        if (error.code === 'P2003') {
-          throw new BadRequestException(
-            'Référence invalide dans les données fournies.',
-          );
-        }
+        if (error.code === 'P2002') throw new ConflictException('Un utilisateur avec cet identifiant existe déjà.');
       }
-
-      // Erreur inconnue : on relance l'originale pour ne pas perdre le stack trace
       throw error;
     }
   }
@@ -60,13 +45,9 @@ export class UserRepository implements IUserRepository {
     try {
       const user = await this.prisma.user.findFirst({
         where: { phone },
+        include: { shopAccesses: true }
       });
-
-      if (!user) {
-        return null;
-      }
-
-      return this.mapper.toAplication(user);
+      return user ? this.mapper.toApplication(user) : null;
     } catch (error) {
       this.logger.error(`Failed to find user by phone: ${phone}`);
       throw new InternalServerErrorException('Erreur lors de la recherche');
@@ -75,17 +56,11 @@ export class UserRepository implements IUserRepository {
 
   async getUserById(id: string): Promise<User | null> {
     try {
-      this.logger.debug(`Searching user with id: ${id}`);
-
       const user = await this.prisma.user.findUnique({
         where: { id },
+        include: { shopAccesses: true }
       });
-
-      if (!user) {
-        return null;
-      }
-
-      return this.mapper.toAplication(user);
+      return user ? this.mapper.toApplication(user) : null;
     } catch (error) {
       this.logger.error(`Failed to get user by id: ${id}`);
       throw new InternalServerErrorException('Erreur lors de la recherche');
@@ -95,41 +70,26 @@ export class UserRepository implements IUserRepository {
   async getAllUsers(): Promise<User[]> {
     try {
       const allUsers = await this.prisma.user.findMany({
+        include: { shopAccesses: true },
         orderBy: { createdAt: 'desc' },
       });
-
-      return allUsers.map((user) => this.mapper.toAplication(user));
+      return allUsers.map((user) => this.mapper.toApplication(user));
     } catch (error) {
       this.logger.error('Failed to get all users');
-      throw new InternalServerErrorException(
-        'Erreur lors de la récupération des utilisateurs',
-      );
+      throw new InternalServerErrorException('Erreur lors de la récupération des utilisateurs');
     }
   }
-  async updateRefreshToken(
-    userId: string,
-    refreshToken: string,
-  ): Promise<User> {
+
+  async updateRefreshToken(userId: string, refreshToken: string): Promise<User> {
     try {
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: { refreshToken },
+        include: { shopAccesses: true }
       });
-
-      return this.mapper.toAplication(user);
+      return this.mapper.toApplication(user);
     } catch (error) {
-      if (
-        error instanceof Object &&
-        'code' in error &&
-        error.code === 'P2025'
-      ) {
-        throw new BadRequestException(`L'utilisateur ${userId} n'existe pas`);
-      }
-
-      this.logger.error(
-        `Failed to update refresh token for user: ${userId}`,
-        (error as any)?.stack,
-      );
+      this.logger.error(`Failed to update refresh token for user: ${userId}`);
       throw new InternalServerErrorException('Erreur lors de la mise à jour');
     }
   }
@@ -137,83 +97,47 @@ export class UserRepository implements IUserRepository {
   async deleteUser(userId: string): Promise<void> {
     try {
       await this.prisma.user.delete({ where: { id: userId } });
-      this.logger.log(`User ${userId} deleted successfully`);
     } catch (error) {
       this.logger.error(`Failed to delete user: ${userId}`);
       throw new InternalServerErrorException('Erreur lors de la suppression');
     }
   }
 
-  async paginate(
-    page: number,
-    limit: number,
-    search?: FilterUserDto,
-    role?: UserRole | 'ALL',
-  ): Promise<{
-    data: User[];
-    totalPage: number;
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async paginate(page: number, limit: number, search?: FilterUserDto, role?: UserRole | 'ALL'): Promise<{ data: User[]; totalPage: number; total: number; page: number; limit: number; }> {
     try {
       const skip = (page - 1) * limit;
       const where = this.buildWhereClause(search, role);
       const [users, total] = await Promise.all([
         this.prisma.user.findMany({
           where,
+          include: { shopAccesses: true },
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' },
         }),
         this.prisma.user.count({ where }),
       ]);
-
       return {
-        data: users.map((user) => this.mapper.toAplication(user)),
+        data: users.map((user) => this.mapper.toApplication(user)),
         total,
         totalPage: Math.ceil(total / limit),
         page,
         limit,
       };
     } catch (error) {
-      this.logger.error('Failed to paginate users');
       throw new BadRequestException('Erreur lors de la pagination');
     }
   }
 
-  /**
-   * Construit la clause WHERE pour Prisma en fonction des filtres
-   */
-  private buildWhereClause(
-    search?: FilterUserDto,
-    role?: UserRole | 'ALL',
-  ): Prisma.UserWhereInput {
+  private buildWhereClause(search?: FilterUserDto, role?: UserRole | 'ALL'): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {};
     const orFilters: Prisma.UserWhereInput[] = [];
-
     if (search) {
-      if (search.name?.trim()) {
-        orFilters.push({
-          name: { contains: search.name.trim(), mode: 'insensitive' },
-        });
-      }
-     
-      if (search.phone?.trim()) {
-        orFilters.push({
-          phone: { contains: search.phone.trim(), mode: 'insensitive' },
-        });
-      }
+      if (search.name?.trim()) orFilters.push({ name: { contains: search.name.trim(), mode: 'insensitive' } });
+      if (search.phone?.trim()) orFilters.push({ phone: { contains: search.phone.trim(), mode: 'insensitive' } });
     }
-
-    if (orFilters.length > 0) {
-      where.OR = orFilters;
-    }
-
-    if (role && role !== 'ALL') {
-      where.role = role;
-    }
-
+    if (orFilters.length > 0) where.OR = orFilters;
+    if (role && role !== 'ALL') where.role = role as UserRole;
     return where;
   }
 
@@ -222,43 +146,34 @@ export class UserRepository implements IUserRepository {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateData,
+      include: { shopAccesses: true }
     });
-    return this.mapper.toAplication(user);
+    return this.mapper.toApplication(user);
   }
+
   async updatePassword(id: string, password: string): Promise<User> {
     const newPass = await this.prisma.user.update({
       where: { id },
-      data: { passwordHash:password  },
+      data: { passwordHash: password },
+      include: { shopAccesses: true }
     });
-    return this.mapper.toAplication(newPass);
+    return this.mapper.toApplication(newPass);
   }
-  // STATISTIQUE 
-  async stats(
-    limit: number,
-    page: number,
-  ): Promise<PaginatedResponseRepository<User>> {
+
+  async stats(limit: number, page: number): Promise<PaginatedResponseRepository<User>> {
     const skip = (page - 1) * limit;
     const [controllers, total] = await Promise.all([
       this.prisma.user.findMany({
         where: { role: 'CASHIER' },
-        select: {
-          id: true,
-          // email: true,
-          name: true,
-          phone: true,
-          role: true, 
-        },
+        include: { shopAccesses: true },
         skip,
         take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.user.count({ where: { role: 'CASHIER' } }),
     ]);
-    const mappedData = controllers.map((s) => this.mapper.toAplication(s));
     return {
-      data: mappedData,
+      data: controllers.map((s) => this.mapper.toApplication(s)),
       total,
       totalPages: Math.ceil(total / limit),
       page,

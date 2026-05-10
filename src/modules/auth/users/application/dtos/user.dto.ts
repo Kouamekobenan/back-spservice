@@ -17,6 +17,15 @@ import { Type } from 'class-transformer';
 
 export class UserDto {
   @ApiProperty({
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    description: "Identifiant unique de l'utilisateur (UUID)",
+    format: 'uuid',
+  })
+  @IsUUID('4', { message: "L'identifiant doit être un UUID v4 valide" })
+  @IsNotEmpty({ message: "L'identifiant est obligatoire" })
+  id!: string;
+
+  @ApiProperty({
     example: 'johndoe',
     description: "Nom d'utilisateur unique",
     minLength: 3,

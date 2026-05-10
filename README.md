@@ -24,21 +24,25 @@ Le système gère 5 niveaux d'accès distincts pour assurer une sécurité maxim
 
 | Rôle | Description | Portée |
 | :--- | :--- | :--- |
-| **SUPER_ADMIN** | Accès total et absolu à l'ensemble du système. | Global (Toutes les boutiques) |
-| **ADMIN** | Administrateur de sa propre boutique. | Boutique Spécifique |
-| **MANAGER** | Gère les stocks, les achats et les rapports quotidiens. | Boutique Spécifique |
-| **CASHIER** | Utilise l'interface POS pour les ventes uniquement. | Point de Vente |
-| **AUDITOR** | Accès en lecture seule pour l'audit et le contrôle. | Boutique Spécifique |
+| **SUPER_ADMIN** | Accès total et absolu à l'ensemble du système (tous les shops). | Global |
+| **ADMIN** | Accès total à une ou plusieurs boutiques assignées. | Multi-Shops |
+| **MANAGER** | Gère les stocks et rapports sur les boutiques assignées. | Multi-Shops |
+| **CASHIER** | Utilise l'interface POS pour les boutiques assignées. | Point de Vente |
+| **AUDITOR** | Accès en lecture seule sur les boutiques assignées. | Audit |
+
+### Sécurité des accès (ShopAccessGuard) :
+Le système utilise un `ShopAccessGuard` qui valide chaque requête. Si un utilisateur tente d'accéder à un `shopId` qui n'est pas dans sa liste d'accès autorisés, le système renvoie une erreur `403 Forbidden`, sauf s'il possède le rôle `SUPER_ADMIN`.
 
 ---
 
 ## 🏢 Gestion Multi-Boutiques (Shops)
 
-Le système est conçu pour être **Multi-Boutiques**. Chaque boutique est une entité isolée avec ses propres configurations, stocks et personnels.
+Le système est conçu pour être **Multi-Boutiques**. Contrairement à une structure classique, un utilisateur n'est pas limité à une seule boutique.
 
 ### Caractéristiques principales :
-- **Isolation des données** : Les produits, ventes et utilisateurs sont rattachés à une boutique spécifique.
-- **Paramètres personnalisés** : Chaque boutique définit sa devise (ex: XOF), ses taxes et son logo.
+- **Accès Multiples (N-à-N)** : Un utilisateur peut être affecté à plusieurs boutiques via la table `UserShopAccess`.
+- **Rôles Granulaires** : Possibilité de définir un rôle spécifique par boutique (ex: Admin dans la Boutique A, Auditeur dans la Boutique B).
+- **Isolation Dynamique** : Les données restent isolées par `shopId`, mais le système vérifie dynamiquement les permissions de l'utilisateur sur chaque ID demandé.
 - **Statut d'activité** : Possibilité d'activer ou désactiver une boutique instantanément.
 
 ---

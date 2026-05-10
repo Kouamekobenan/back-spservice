@@ -110,7 +110,8 @@ model Shop {
   isActive    Boolean  @default(true)
 
   // Relations
-  users         User[]
+  // RELATION MISE À JOUR
+  usersAccess UserShopAccess[]
   products      Product[]
   sales         Sale[]
   expenses      Expense[]
@@ -130,33 +131,52 @@ model Shop {
 // ============================================================
 
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  passwordHash String   // Toujours stocker le hash, jamais le mot de passe
-  refreshToken      String?    
+  id           String    @id // On enlève @default(uuid()) ici pour forcer la gestion côté client (Offline-first)
+  username     String    @unique
+  passwordHash String
+  refreshToken String?
   name         String
-  phone String?
-  role         Role     @default(CASHIER)
-  pin          String?  // PIN à 4 chiffres pour déverrouillage rapide en caisse
-  isActive     Boolean  @default(true)
+  phone        String?
+  role         Role      @default(CASHIER)
+  pin          String?
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  
+  // NOUVELLE RELATION : Un utilisateur peut avoir accès à plusieurs boutiques
+  shopAccesses UserShopAccess[]
 
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id])
-
-  sales         Sale[]
-  cashSessions  CashSession[]
-  auditLogs     AuditLog[]
+  // Les autres relations restent, mais attention : 
+  // une vente ou une session de caisse doit toujours être liée à UN shop précis.
+  sales          Sale[]
+  cashSessions   CashSession[]
+  auditLogs      AuditLog[]
   stockMovements StockMovement[]
 
-  // Sync Offline
   syncStatus SyncStatus @default(SYNCED)
-  localId    String?    // ID temporaire généré hors ligne
+  localId    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model UserShopAccess {
+  id        String   @id @default(uuid())
+  userId    String
+  shopId    String
+  
+  // On peut même surcharger le rôle par boutique ici si besoin
+  // Ex: Admin dans le Shop A, mais simple Auditor dans le Shop B
+  roleInShop Role?    
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, shopId]) // Un utilisateur ne peut pas avoir deux accès identiques au même shop
+  @@map("user_shop_access")
 }
 
 // ============================================================
