@@ -49,6 +49,7 @@ async function bootstrap() {
     'http://localhost:5173',
     'http://127.0.0.1:3000',
     'https://stockpro-delta.vercel.app',
+   'https://back-spservice-production.up.railway.app'
   ];
 
   if (process.env.NODE_ENV !== 'production') {
@@ -127,6 +128,7 @@ async function bootstrap() {
               'http://localhost:3000',
               'http://127.0.0.1:3000',
               'https://stockpro-delta.vercel.app',
+              'https://back-spservice-production.up.railway.app'
             ],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
