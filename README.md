@@ -307,6 +307,27 @@ Le module **ShopSetting** permet de personnaliser le comportement et l'apparence
 
 ---
 
+## 🛡️ Audit Trail & Traçabilité (Audit Logs)
+
+Le module **AuditLog** est le système de surveillance central qui enregistre toutes les actions critiques effectuées sur la plateforme pour garantir une sécurité et une transparence maximales.
+
+### Fonctionnalités Clés :
+- **Capture d'État (Snapshots)** : Enregistre l'état des données avant (`dataBefore`) et après (`dataAfter`) chaque modification, permettant un retour en arrière ou une analyse précise des erreurs.
+- **Contexte Complet** : Chaque log capture l'auteur de l'action, la boutique concernée, l'adresse IP et l'agent utilisateur (navigateur/appareil).
+- **Actions Supervisées** : Suit les créations, mises à jour, suppressions, connexions/déconnexions, annulations de ventes, changements de prix et ajustements de stock.
+- **Filtrage Multidimensionnel** : Recherche puissante par période, utilisateur, type d'entité (ex: "Product", "Sale") ou action spécifique.
+
+### Architecture de l'Audit :
+```mermaid
+graph LR
+    A[Utilisateur/Système] --> B{Action Critique}
+    B -->|CREATE/UPDATE/DELETE| C[AuditLog Module]
+    C --> D[(Base de Données Audit)]
+    D --> E[Interface de Consultation]
+```
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)
