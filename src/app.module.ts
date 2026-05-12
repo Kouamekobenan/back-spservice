@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AppService } from './app.service';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { UserModule } from './modules/auth/users/user.module';
 import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -28,6 +29,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    EventEmitterModule.forRoot(),
     // Vos autres modules
     UserModule,
     AuthModule,

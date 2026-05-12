@@ -5,6 +5,7 @@ import { FindAllAuditLogsUseCase } from './application/use-cases/find-all-audit-
 import { FindAuditLogByIdUseCase } from './application/use-cases/find-audit-log-by-id.use-case.js';
 import { AuditLogRepository } from './infrastructure/repository/audit-log.repository.js';
 import { AuditLogMapper } from './domain/mappers/audit-log.mapper.js';
+import { AuditLogListener } from './application/listeners/audit-log.listener.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 
 @Module({
@@ -12,6 +13,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
   controllers: [AuditLogController],
   providers: [
     AuditLogMapper,
+    AuditLogListener,
     CreateAuditLogUseCase,
     FindAllAuditLogsUseCase,
     FindAuditLogByIdUseCase,
