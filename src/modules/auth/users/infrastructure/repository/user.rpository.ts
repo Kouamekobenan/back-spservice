@@ -40,7 +40,6 @@ export class UserRepository implements IUserRepository {
       throw error;
     }
   }
-
   async findByPhone(phone: string): Promise<User | null> {
     try {
       const user = await this.prisma.user.findFirst({

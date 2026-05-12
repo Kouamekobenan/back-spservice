@@ -13,7 +13,7 @@ export class RegisterUserUseCase {
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
-    private readonly authService: AuthService, // ✅ convention camelCase cohérente
+    private readonly authService: AuthService, //  convention camelCase cohérente
     // private readonly mailService: MailService,
   ) {}
 
@@ -23,7 +23,7 @@ export class RegisterUserUseCase {
     );
 
     if (existingUser) {
-      throw new ConflictException('Un compte avec cet email existe déjà.');
+      throw new ConflictException('Un compte avec ce numéro existe déjà.');
     }
 
     // 2. Hasher le mot de passe
@@ -44,7 +44,6 @@ export class RegisterUserUseCase {
         `Échec de la création du compte : ${message}`,
       );
     }
-
     // 4. Générer les tokens
     const { accessToken, refreshToken } = await this.authService.generateTokens(
       {
@@ -53,7 +52,6 @@ export class RegisterUserUseCase {
         role: newUser.getRole(),
       },
     );
-  
     return {
       message: 'Compte créé avec succès.',
       tokens: { accessToken, refreshToken },

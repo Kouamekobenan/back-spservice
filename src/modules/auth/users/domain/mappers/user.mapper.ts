@@ -2,11 +2,12 @@ import { UserDto } from '../../application/dtos/user.dto.js';
 import { User, UserShopAccess } from '../entities/user.entity.js';
 import { Prisma, User as UserPrisma, UserShopAccess as PrismaShopAccess } from '@prisma/client';
 import { UserRole as Role } from '../enums/role.enum.js';
+import { randomUUID } from 'crypto';
 
 export class UserMapper {
   toPersistence(data: UserDto): Prisma.UserCreateInput {
     return {
-      id: data.id,
+      id:randomUUID(),
       username: data.username,
       passwordHash: data.passwordHash,
       name: data.name,

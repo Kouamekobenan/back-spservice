@@ -64,7 +64,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   async me(@Req() req: any) {
-    // ✅ Vérification de sécurité
+    //  Vérification de sécurité
     if (!req.user || !req.user.userId) {
       this.logger.error('req.user is undefined or missing userId');
       this.logger.error('req.user:', req.user);
@@ -102,10 +102,11 @@ export class AuthController {
     this.logger.log(`Registration attempt for: ${userData.pin}`);
     return await this.registerUseCase.execute(userData);
   }
+
   /**
    * Connexion utilisateur
    */
-  @Public() // ✅ Uniquement pour cette route
+  @Public() //  Uniquement pour cette route
   @Post('login')
   @ApiOperation({ summary: "Connexion d'un utilisateur" })
   @ApiResponse({
