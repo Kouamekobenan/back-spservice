@@ -1,34 +1,56 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEnum, IsNumber, IsPositive, IsOptional, IsDateString, IsBoolean, IsInt, Min, Max, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsDateString,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+  IsUUID,
+} from 'class-validator';
 import { ExpenseCategory } from '../../domain/entities/expense.entity.js';
 
 export class CreateExpenseDto {
-  @ApiProperty({ example: 'Loyer Mai 2026', description: 'Titre de la dépense' })
+  @ApiProperty({
+    example: 'Loyer Mai 2026',
+    description: 'Titre de la dépense',
+  })
   @IsString()
   @IsNotEmpty()
-  title: string;
+  title!: string;
 
   @ApiProperty({ enum: ExpenseCategory, example: ExpenseCategory.RENT })
   @IsEnum(ExpenseCategory)
   @IsNotEmpty()
-  category: ExpenseCategory;
+  category!: ExpenseCategory;
 
   @ApiProperty({ example: 150000, description: 'Montant de la dépense' })
   @IsNumber()
   @IsPositive()
-  amount: number;
+  amount!: number;
 
   @ApiProperty({ example: '2026-05-10T10:00:00Z', required: false })
   @IsDateString()
   @IsOptional()
   date?: string;
 
-  @ApiProperty({ example: 'Paiement du loyer du local principal', required: false })
+  @ApiProperty({
+    example: 'Paiement du loyer du local principal',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ example: 'https://cdn.example.com/receipts/123.jpg', required: false })
+  @ApiProperty({
+    example: 'https://cdn.example.com/receipts/123.jpg',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   receiptUrl?: string;
@@ -38,7 +60,11 @@ export class CreateExpenseDto {
   @IsOptional()
   isRecurring?: boolean;
 
-  @ApiProperty({ example: 5, description: 'Jour du mois pour la récurrence', required: false })
+  @ApiProperty({
+    example: 5,
+    description: 'Jour du mois pour la récurrence',
+    required: false,
+  })
   @IsInt()
   @Min(1)
   @Max(31)
@@ -48,5 +74,13 @@ export class CreateExpenseDto {
   @ApiProperty({ example: 'shop-uuid-123' })
   @IsUUID()
   @IsNotEmpty()
-  shopId: string;
+  shopId!: string;
+
+  @ApiProperty({
+    example: 'user-uuid-456',
+    description: "ID de l'utilisateur qui crée la dépense",
+  })
+  @IsUUID()
+  @IsNotEmpty()
+  userId!: string;
 }

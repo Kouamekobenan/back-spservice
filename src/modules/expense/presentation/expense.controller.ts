@@ -50,7 +50,8 @@ export class ExpenseController {
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer une dépense' })
   @ApiParam({ name: 'id', description: 'UUID de la dépense' })
-  async delete(@Param('id') id: string) {
-    return await this.deleteUseCase.execute(id);
+  async delete(@Param('id') id: string, @Query('userId') userId: string) {
+    // Note: userId should eventually come from the Auth context
+    return await this.deleteUseCase.execute(id, userId || 'system-user');
   }
 }

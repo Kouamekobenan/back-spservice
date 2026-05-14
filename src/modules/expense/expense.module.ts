@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ExpenseController } from './presentation/expense.controller.js';
-import { CreateExpenseUseCase } from './application/usecases/create-expense.usecase.js';
 import { UpdateExpenseUseCase } from './application/usecases/update-expense.usecase.js';
 import { DeleteExpenseUseCase } from './application/usecases/delete-expense.usecase.js';
 import { FindAllExpensesUseCase } from './application/usecases/find-all-expenses.usecase.js';
@@ -8,6 +7,7 @@ import { FindExpenseByIdUseCase } from './application/usecases/find-expense-by-i
 import { ExpenseMapper } from './domain/mappers/expense.mapper.js';
 import { PrismaExpenseRepository } from './infrastructure/repository/prisma-expense.repository.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
+import { CreateExpenseUseCase } from './application/usecases/create-expense.usecase.js';
 
 @Module({
   imports: [PrismaModule],
