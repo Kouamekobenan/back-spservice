@@ -4,6 +4,9 @@ import { CreditPayment } from '../../domain/entities/credit-payment.entity.js';
 import { CreateCreditPaymentDto } from '../dtos/create-credit-payment.dto.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { CreditPaymentMapper } from '../../domain/mappers/credit-payment.mapper.js';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AuditAction } from '@prisma/client';
+import { AuditEvent } from '../../../../common/events/audit.event.js';
 
 @Injectable()
 export class CreateCreditPaymentUseCase {
@@ -12,6 +15,7 @@ export class CreateCreditPaymentUseCase {
     private readonly paymentRepository: ICreditPaymentRepository,
     private readonly prisma: PrismaService,
     private readonly mapper: CreditPaymentMapper,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(data: CreateCreditPaymentDto): Promise<CreditPayment> {
@@ -21,7 +25,9 @@ export class CreateCreditPaymentUseCase {
     });
 
     if (!customer) {
-      throw new NotFoundException(`Client avec l'ID ${data.customerId} non trouvé`);
+      throw new NotFoundException(
+        `Client avec l'ID ${data.customerId} non trouvé`,
+      );
     }
 
     // 2. Vérifier que le montant du paiement ne dépasse pas la dette
@@ -46,6 +52,22 @@ export class CreateCreditPaymentUseCase {
           },
         });
 
+        // AUDIT
+         this.eventEmitter.emit(
+           'audit.updated',
+           new AuditEvent(
+             AuditAction.CREATE,
+             'Credit',
+             result.id,
+             data.reference || 'system-user',
+             data.customerId,
+             result,
+             payment,
+             undefined,
+             undefined,
+             `Paiement crédit : ${result.method} avec une somme de: ${result.amount}`,
+           ),
+         );
         // Mettre à jour la dette du client (soustraction)
         await tx.customer.update({
           where: { id: data.customerId },
