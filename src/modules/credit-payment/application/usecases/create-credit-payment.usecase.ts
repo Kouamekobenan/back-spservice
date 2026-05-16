@@ -7,7 +7,6 @@ import { CreditPaymentMapper } from '../../domain/mappers/credit-payment.mapper.
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AuditAction } from '@prisma/client';
 import { AuditEvent } from '../../../../common/events/audit.event.js';
-
 @Injectable()
 export class CreateCreditPaymentUseCase {
   constructor(
@@ -36,7 +35,6 @@ export class CreateCreditPaymentUseCase {
         `Le montant du paiement (${data.amount}) ne peut pas dépasser la dette totale du client (${customer.totalDebt})`,
       );
     }
-
     try {
       // 3. Transaction atomique : Création du paiement + Mise à jour de la dette
       const result = await this.prisma.$transaction(async (tx) => {
@@ -51,7 +49,6 @@ export class CreateCreditPaymentUseCase {
             localId: data.localId,
           },
         });
-
         // AUDIT
          this.eventEmitter.emit(
            'audit.updated',

@@ -22,6 +22,7 @@ import { StockTransferModule } from './modules/stock-transfer/stock-transfer.mod
 import { ExpenseModule } from './modules/expense/expense.module.js';
 import { ShopSettingModule } from './modules/shop-setting/shop-setting.module.js';
 import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
+import { UserShopAccessModule } from './modules/user-shop-access/user-shop-access.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
     ExpenseModule,
     ShopSettingModule,
     AuditLogModule,
+    UserShopAccessModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

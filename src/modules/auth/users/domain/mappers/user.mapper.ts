@@ -1,13 +1,17 @@
 import { UserDto } from '../../application/dtos/user.dto.js';
 import { User, UserShopAccess } from '../entities/user.entity.js';
-import { Prisma, User as UserPrisma, UserShopAccess as PrismaShopAccess } from '@prisma/client';
+import {
+  Prisma,
+  User as UserPrisma,
+  UserShopAccess as PrismaShopAccess,
+} from '@prisma/client';
 import { UserRole as Role } from '../enums/role.enum.js';
 import { randomUUID } from 'crypto';
 
 export class UserMapper {
   toPersistence(data: UserDto): Prisma.UserCreateInput {
     return {
-      id:randomUUID(),
+      id: randomUUID(),
       username: data.username,
       passwordHash: data.passwordHash,
       name: data.name,
@@ -16,14 +20,14 @@ export class UserMapper {
       pin: data.pin,
       isActive: data.isActive,
       // lastLoginAt: data.lastLoginAt,
-      localId: data.localId
+      localId: data.localId,
     };
   }
 
-  toApplication(userData: any): User {
-    const shopAccesses = (userData.shopAccesses || []).map(
-      (access: any) => new UserShopAccess(access.shopId, access.roleInShop as Role)
-    );
+  toApplication(userData: any & { shopAccesses?: any[] }): User {
+    // const shopAccesses = (userData.shopAccesses || []).map(
+    //   (access: any) => new UserShopAccess(access.shopId, access.roleInShop as Role)
+    // );
 
     return new User(
       userData.id,
@@ -36,10 +40,10 @@ export class UserMapper {
       userData.pin,
       userData.isActive,
       userData.lastLoginAt,
-      shopAccesses,
       userData.localId,
       userData.createdAt,
       userData.updatedAt,
+      userData.shopAccesses,
     );
   }
 

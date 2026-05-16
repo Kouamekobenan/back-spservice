@@ -27,15 +27,25 @@ export class UserRepository implements IUserRepository {
   async createUser(dataUser: UserDto): Promise<User> {
     try {
       const createData = this.mapper.toPersistence(dataUser);
-      const user = await this.prisma.user.create({ 
+      const user = await this.prisma.user.create({
         data: createData,
-        include: { shopAccesses: true }
+        include: {
+          shopAccesses: {
+            select: { shop: true, shopId: true, roleInShop: true },
+          },
+        },
       });
       return this.mapper.toApplication(user);
     } catch (error) {
-      this.logger.error('Failed to create user', error instanceof Error ? error.stack : error);
+      this.logger.error(
+        'Failed to create user',
+        error instanceof Error ? error.stack : error,
+      );
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') throw new ConflictException('Un utilisateur avec cet identifiant existe déjà.');
+        if (error.code === 'P2002')
+          throw new ConflictException(
+            'Un utilisateur avec cet identifiant existe déjà.',
+          );
       }
       throw error;
     }
@@ -44,7 +54,11 @@ export class UserRepository implements IUserRepository {
     try {
       const user = await this.prisma.user.findFirst({
         where: { phone },
-        include: { shopAccesses: true }
+        include: {
+          shopAccesses: {
+            select: { shop: true, shopId: true, roleInShop: true },
+          },
+        },
       });
       return user ? this.mapper.toApplication(user) : null;
     } catch (error) {
@@ -57,7 +71,11 @@ export class UserRepository implements IUserRepository {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id },
-        include: { shopAccesses: true }
+        include: {
+          shopAccesses: {
+            select: { shop: true, shopId: true, roleInShop: true },
+          },
+        },
       });
       return user ? this.mapper.toApplication(user) : null;
     } catch (error) {
@@ -69,22 +87,31 @@ export class UserRepository implements IUserRepository {
   async getAllUsers(): Promise<User[]> {
     try {
       const allUsers = await this.prisma.user.findMany({
-        include: { shopAccesses: true },
+        include: {
+          shopAccesses: {
+            select: { shop: true, shopId: true, roleInShop: true },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
       return allUsers.map((user) => this.mapper.toApplication(user));
     } catch (error) {
       this.logger.error('Failed to get all users');
-      throw new InternalServerErrorException('Erreur lors de la récupération des utilisateurs');
+      throw new InternalServerErrorException(
+        'Erreur lors de la récupération des utilisateurs',
+      );
     }
   }
 
-  async updateRefreshToken(userId: string, refreshToken: string): Promise<User> {
+  async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<User> {
     try {
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: { refreshToken },
-        include: { shopAccesses: true }
+        include: { shopAccesses: true },
       });
       return this.mapper.toApplication(user);
     } catch (error) {
@@ -102,7 +129,18 @@ export class UserRepository implements IUserRepository {
     }
   }
 
-  async paginate(page: number, limit: number, search?: FilterUserDto, role?: UserRole | 'ALL'): Promise<{ data: User[]; totalPage: number; total: number; page: number; limit: number; }> {
+  async paginate(
+    page: number,
+    limit: number,
+    search?: FilterUserDto,
+    role?: UserRole | 'ALL',
+  ): Promise<{
+    data: User[];
+    totalPage: number;
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     try {
       const skip = (page - 1) * limit;
       const where = this.buildWhereClause(search, role);
@@ -128,12 +166,21 @@ export class UserRepository implements IUserRepository {
     }
   }
 
-  private buildWhereClause(search?: FilterUserDto, role?: UserRole | 'ALL'): Prisma.UserWhereInput {
+  private buildWhereClause(
+    search?: FilterUserDto,
+    role?: UserRole | 'ALL',
+  ): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {};
     const orFilters: Prisma.UserWhereInput[] = [];
     if (search) {
-      if (search.name?.trim()) orFilters.push({ name: { contains: search.name.trim(), mode: 'insensitive' } });
-      if (search.phone?.trim()) orFilters.push({ phone: { contains: search.phone.trim(), mode: 'insensitive' } });
+      if (search.name?.trim())
+        orFilters.push({
+          name: { contains: search.name.trim(), mode: 'insensitive' },
+        });
+      if (search.phone?.trim())
+        orFilters.push({
+          phone: { contains: search.phone.trim(), mode: 'insensitive' },
+        });
     }
     if (orFilters.length > 0) where.OR = orFilters;
     if (role && role !== 'ALL') where.role = role as UserRole;
@@ -145,7 +192,7 @@ export class UserRepository implements IUserRepository {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateData,
-      include: { shopAccesses: true }
+      include: { shopAccesses: true },
     });
     return this.mapper.toApplication(user);
   }
@@ -154,12 +201,15 @@ export class UserRepository implements IUserRepository {
     const newPass = await this.prisma.user.update({
       where: { id },
       data: { passwordHash: password },
-      include: { shopAccesses: true }
+      include: { shopAccesses: true },
     });
     return this.mapper.toApplication(newPass);
   }
 
-  async stats(limit: number, page: number): Promise<PaginatedResponseRepository<User>> {
+  async stats(
+    limit: number,
+    page: number,
+  ): Promise<PaginatedResponseRepository<User>> {
     const skip = (page - 1) * limit;
     const [controllers, total] = await Promise.all([
       this.prisma.user.findMany({
