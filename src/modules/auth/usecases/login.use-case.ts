@@ -5,7 +5,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import {type IUserRepository } from '../users/application/interfaces/user.interface.repository';
+import { type IUserRepository } from '../users/application/interfaces/user.interface.repository';
 import { User } from '../users/domain/entities/user.entity';
 import { AuthService } from '../services/auth.service';
 
@@ -34,7 +34,7 @@ export class LoginUserUseCase {
       );
     }
 
-    // 🔐 2️⃣ Vérifie le mot de passe
+    //  Vérifie le mot de passe
     const isPasswordValid = await this.authService.comparePassword(
       password,
       user.getPassword() ?? '',
@@ -63,8 +63,8 @@ export class LoginUserUseCase {
     this.logger.log(
       `Connexion réussie pour l'utilisateur avec le numéro ${phone}`,
     );
-
-    //  4️⃣ Retourne le résultat
+    await this.userRepository.lastConnect(user.getId());
+    //  4️Retourne le résultat
     return { user, token: { accessToken, refreshToken } };
   }
 }

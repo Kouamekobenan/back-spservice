@@ -229,4 +229,11 @@ export class UserRepository implements IUserRepository {
       limit,
     };
   }
+  async lastConnect(id: string): Promise<User> {
+    const connect = await this.prisma.user.update({
+      where: { id },
+      data: { lastLoginAt: new Date() },
+    });
+    return this.mapper.toApplication(connect);
+  }
 }

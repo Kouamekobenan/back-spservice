@@ -10,6 +10,8 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -64,6 +66,8 @@ export class CategoryController {
   @Get()
   @ApiOperation({ summary: 'Récupérer toutes les catégories avec pagination' })
   @ApiOkResponse({ type: [CategoryResponseDto] })
+    @UsePipes(new ValidationPipe({ transform: true }))
+  
   async findAll(@Query() query: CategoryQueryDto) {
     this.logger.log('Récupération des catégories paginées');
     return await this.getAllCategoriesUseCase.execute(query);

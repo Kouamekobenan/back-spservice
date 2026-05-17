@@ -23,7 +23,7 @@ export interface IUserRepository {
     limit: number;
   }>;
   updateRefreshToken(userId: string, refreshToken: string): Promise<User>;
-  // updateRole(id: string): Promise<void>;
+  lastConnect(id: string): Promise<User>;
   // updateDeviceToken(id: string, dto: UpdateDeviceTokenDto): Promise<User>;
   updateUser(id: string, dataUser: UserDto): Promise<User>;
   updatePassword(id: string, password:string): Promise<User>;

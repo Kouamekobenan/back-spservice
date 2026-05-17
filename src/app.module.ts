@@ -23,6 +23,7 @@ import { ExpenseModule } from './modules/expense/expense.module.js';
 import { ShopSettingModule } from './modules/shop-setting/shop-setting.module.js';
 import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
 import { UserShopAccessModule } from './modules/user-shop-access/user-shop-access.module';
+import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.module.js';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { UserShopAccessModule } from './modules/user-shop-access/user-shop-acces
     ShopSettingModule,
     AuditLogModule,
     UserShopAccessModule,
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

@@ -7,12 +7,7 @@ import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/execeptions/http.exception.filter';
 
 async function bootstrap() {
-  // ─────────────────────────────────────────────
-  // 1. CRÉATION DE L'APPLICATION NEST
-  // ─────────────────────────────────────────────
-  // On adapte le niveau de log selon l'environnement :
-  // - production : uniquement les erreurs et avertissements
-  // - développement : tous les niveaux (log, debug, verbose…)
+
   const app = await NestFactory.create(AppModule, {
     logger:
       process.env.NODE_ENV === 'production'
@@ -37,8 +32,6 @@ async function bootstrap() {
   // Tous les endpoints seront automatiquement préfixés par cette valeur
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
 
-  //  FIX : application du préfixe global à TOUS les endpoints
-  // Sans cette ligne, le préfixe n'était utilisé que pour Swagger mais PAS pour les routes
   app.setGlobalPrefix(apiPrefix);
   // ─────────────────────────────────────────────
   // 3. CONFIGURATION CORS

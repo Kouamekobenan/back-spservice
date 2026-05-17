@@ -10,6 +10,8 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -75,6 +77,8 @@ export class UnitController {
     description: 'Liste des unités récupérée avec succès.',
     type: [UnitResponseDto] 
   })
+    @UsePipes(new ValidationPipe({ transform: true }))
+  
   async findAll(@Query() query: UnitQueryDto) {
     this.logger.log('Récupération des unités paginées');
     return await this.getAllUnitsUseCase.execute(query);

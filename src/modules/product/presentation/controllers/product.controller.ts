@@ -10,6 +10,8 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -54,15 +56,18 @@ export class ProductController {
   @ApiOperation({ summary: 'Créer un nouveau produit' })
   @ApiBody({ type: CreateProductDto })
   @ApiCreatedResponse({ type: ProductResponseDto })
-  async create(@Body() createProductDto: CreateProductDto): Promise<ProductResponseDto> {
+  async create(
+    @Body() createProductDto: CreateProductDto,
+  ): Promise<ProductResponseDto> {
     this.logger.log(`Création d'un produit: ${createProductDto.name}`);
     return await this.createProductUseCase.execute(createProductDto);
   }
-
   @Public()
   @Get()
   @ApiOperation({ summary: 'Récupérer tous les produits avec filtres avancés' })
   @ApiOkResponse({ type: [ProductResponseDto] })
+  // Option 1 : ValidationPipe avec transformation activée
+  @UsePipes(new ValidationPipe({ transform: true }))
   async findAll(@Query() query: ProductQueryDto) {
     this.logger.log('Récupération des produits paginés');
     return await this.getAllProductsUseCase.execute(query);
@@ -73,8 +78,12 @@ export class ProductController {
   @ApiOperation({ summary: 'Récupérer les alertes de stock pour une boutique' })
   @ApiParam({ name: 'shopId', description: 'ID de la boutique' })
   @ApiOkResponse({ type: [ProductResponseDto] })
-  async getAlerts(@Param('shopId') shopId: string): Promise<ProductResponseDto[]> {
-    this.logger.log(`Récupération des alertes de stock pour la boutique: ${shopId}`);
+  async getAlerts(
+    @Param('shopId') shopId: string,
+  ): Promise<ProductResponseDto[]> {
+    this.logger.log(
+      `Récupération des alertes de stock pour la boutique: ${shopId}`,
+    );
     return await this.getStockAlertsUseCase.execute(shopId);
   }
 
@@ -107,7 +116,9 @@ export class ProductController {
   @ApiOperation({ summary: 'Supprimer un produit' })
   @ApiParam({ name: 'id', description: 'UUID du produit' })
   @ApiOkResponse({ description: 'Produit supprimé avec succès' })
-  async remove(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
+  async remove(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string }> {
     this.logger.log(`Suppression du produit: ${id}`);
     await this.deleteProductUseCase.execute(id);
     return { success: true, message: 'Produit supprimé avec succès' };
