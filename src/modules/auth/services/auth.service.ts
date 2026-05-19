@@ -29,7 +29,7 @@ export class AuthService {
     return bcrypt.compare(password, hashedPassword);
   }
 
-  // 🧩 Générer les deux tokens (access + refresh)
+  // Générer les deux tokens (access + refresh)
   async generateTokens(payload: {
     userId: string;
     phone?: string;

@@ -134,7 +134,6 @@ export class AuthController {
       loginDto.password,
     );
   }
-  @Public()
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

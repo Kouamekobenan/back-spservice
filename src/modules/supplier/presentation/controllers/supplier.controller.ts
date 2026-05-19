@@ -10,6 +10,8 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -51,7 +53,9 @@ export class SupplierController {
   @ApiOperation({ summary: 'Créer un nouveau fournisseur' })
   @ApiBody({ type: CreateSupplierDto })
   @ApiCreatedResponse({ type: SupplierResponseDto })
-  async create(@Body() createSupplierDto: CreateSupplierDto): Promise<SupplierResponseDto> {
+  async create(
+    @Body() createSupplierDto: CreateSupplierDto,
+  ): Promise<SupplierResponseDto> {
     this.logger.log(`Création d'un fournisseur: ${createSupplierDto.name}`);
     return await this.createSupplierUseCase.execute(createSupplierDto);
   }
@@ -60,6 +64,7 @@ export class SupplierController {
   @Get()
   @ApiOperation({ summary: 'Récupérer tous les fournisseurs avec pagination' })
   @ApiOkResponse({ type: [SupplierResponseDto] })
+  @UsePipes(new ValidationPipe({ transform: true }))
   async findAll(@Query() query: SupplierQueryDto) {
     this.logger.log('Récupération des fournisseurs paginés');
     return await this.getAllSuppliersUseCase.execute(query);
@@ -94,7 +99,9 @@ export class SupplierController {
   @ApiOperation({ summary: 'Supprimer un fournisseur' })
   @ApiParam({ name: 'id', description: 'UUID du fournisseur' })
   @ApiOkResponse({ description: 'Fournisseur supprimé avec succès' })
-  async remove(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
+  async remove(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string }> {
     this.logger.log(`Suppression du fournisseur: ${id}`);
     await this.deleteSupplierUseCase.execute(id);
     return { success: true, message: 'Fournisseur supprimé avec succès' };

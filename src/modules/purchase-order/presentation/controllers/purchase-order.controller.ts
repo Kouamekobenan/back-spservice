@@ -9,6 +9,8 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  ValidationPipe,
+  UsePipes,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -58,6 +60,8 @@ export class PurchaseOrderController {
   @Get()
   @ApiOperation({ summary: 'Lister tous les bons de commande' })
   @ApiOkResponse({ type: [PurchaseOrderResponseDto] })
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @UsePipes(new ValidationPipe({ transform: true }))
   async findAll(@Query() query: PurchaseOrderQueryDto) {
     return await this.findAllUseCase.execute(query);
   }
@@ -91,10 +95,7 @@ export class PurchaseOrderController {
   @ApiParam({ name: 'id', description: 'UUID du bon de commande' })
   @ApiBody({ type: ReceiveItemsDto })
   @ApiOkResponse({ type: PurchaseOrderResponseDto })
-  async receiveItems(
-    @Param('id') id: string,
-    @Body() dto: ReceiveItemsDto,
-  ) {
+  async receiveItems(@Param('id') id: string, @Body() dto: ReceiveItemsDto) {
     return await this.receiveUseCase.execute(id, dto, dto.userId);
   }
 }
