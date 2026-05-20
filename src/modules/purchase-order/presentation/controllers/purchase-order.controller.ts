@@ -35,10 +35,8 @@ import { Public } from '../../../../common/decorators/public.decorator.js';
 
 @ApiTags('PurchaseOrders')
 @ApiBearerAuth()
-@Controller('purchase-orders')
+@Controller('purchase-orders')  
 export class PurchaseOrderController {
-  private readonly logger = new Logger(PurchaseOrderController.name);
-
   constructor(
     private readonly createUseCase: CreatePurchaseOrderUseCase,
     private readonly findAllUseCase: GetAllPurchaseOrdersUseCase,
@@ -55,12 +53,10 @@ export class PurchaseOrderController {
   async create(@Body() dto: CreatePurchaseOrderDto) {
     return await this.createUseCase.execute(dto);
   }
-
   @Public()
   @Get()
   @ApiOperation({ summary: 'Lister tous les bons de commande' })
   @ApiOkResponse({ type: [PurchaseOrderResponseDto] })
-  @UsePipes(new ValidationPipe({ transform: true }))
   @UsePipes(new ValidationPipe({ transform: true }))
   async findAll(@Query() query: PurchaseOrderQueryDto) {
     return await this.findAllUseCase.execute(query);

@@ -21,7 +21,7 @@ export class PurchaseOrderQueryDto {
 
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()
-  @Type(() => Number)
+ @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
