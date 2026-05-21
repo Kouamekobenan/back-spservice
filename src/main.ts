@@ -42,7 +42,9 @@ async function bootstrap() {
     'http://localhost:5173',
     'http://127.0.0.1:3000',
     'https://stockpro-delta.vercel.app',
-   'https://back-spservice-production.up.railway.app'
+   'https://back-spservice-production.up.railway.app',
+   'capacitor-electron://-', 
+  'capacitor://localhost', 
   ];
 
   if (process.env.NODE_ENV !== 'production') {
