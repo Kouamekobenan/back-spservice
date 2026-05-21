@@ -24,6 +24,7 @@ import { ShopSettingModule } from './modules/shop-setting/shop-setting.module.js
 import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
 import { UserShopAccessModule } from './modules/user-shop-access/user-shop-access.module';
 import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.module.js';
+import { SyncQueueModule } from './modules/sync-queue/sync-queue.module.js';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.modul
     AuditLogModule,
     UserShopAccessModule,
     SuperAdminModule,
+    SyncQueueModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

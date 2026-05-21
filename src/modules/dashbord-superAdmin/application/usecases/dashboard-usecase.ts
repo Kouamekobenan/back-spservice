@@ -1,18 +1,8 @@
-// ================================================================
-// APPLICATION LAYER — Use Cases
-// Orchestration de la logique métier.
-// Chaque use case = une intention utilisateur précise.
-// Aucune dépendance à Express, Prisma ou NestJS ici.
-// ================================================================
 
 import { Injectable, Inject } from '@nestjs/common';
 import type { IShopRepository, ISalesRepository, IExpenseRepository, ICustomerRepository, ICashierRepository, IAlertRepository } from '../../domain/interface/dashboard-superAdmin.repo';
 import { AlertsResponseDto, CashiersPerformanceResponseDto, CategoriesPerformanceResponseDto, FinancialReportResponseDto, OverviewResponseDto, PeriodQueryDto, RankedQueryDto, ShopsPerformanceResponseDto, TopProductDto, SalesTimelineResponseDto, AlertsQueryDto } from '../super-Admin.dto.js';
 import { Period, ShopFilter, ShopKpi, TopProduct, CategoryPerformance, CashierPerformance, DashboardAlert, AlertType, AlertSeverity } from '../../domain/entities/dashbord-superAdmin.js';
-
-// ================================================================
-// USE CASE 1 — GetDashboardOverviewUseCase
-// ================================================================
 
 @Injectable()
 export class GetDashboardOverviewUseCase {

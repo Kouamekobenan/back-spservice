@@ -328,6 +328,127 @@ graph LR
 
 ---
 
+## 🔄 Gestion Hors-Ligne & Synchronisation (SyncQueue)
+
+Le module **SyncQueue** est le cœur de la stratégie **Offline-First** de l'ERP. Il permet d'enregistrer temporairement en local (côté caisse/frontend) les opérations effectuées en mode déconnecté, puis de les synchroniser de manière séquentielle et sécurisée lorsque la connexion est rétablie.
+
+### Architecture de Synchronisation (Offline-First) :
+```mermaid
+sequenceDiagram
+    participant Client (Offline)
+    participant API Gateway
+    participant SyncQueue (DB)
+    participant CRON / Dispatcher
+    participant Module Métier (ex: Sale)
+
+    Note over Client (Offline): Connexion perdue. Actions stockées localement.
+    Note over Client (Offline): Connexion restaurée.
+    Client (Offline)->>API Gateway: POST /api/v1/sync-queue (Enqueue actions)
+    API Gateway->>SyncQueue (DB): Enregistre les actions en statut PENDING
+    API Gateway-->>Client (Offline): 201 Created (ID Sync pris en compte)
+    
+    Note over CRON / Dispatcher: Exécution CRON toutes les 5 minutes
+    CRON / Dispatcher->>SyncQueue (DB): Récupère les items PENDING (FIFO)
+    CRON / Dispatcher->>Module Métier (ex: Sale): Applique la vente localId
+    Module Métier (ex: Sale)->>CRON / Dispatcher: Retourne l'ID serveur créé
+    CRON / Dispatcher->>SyncQueue (DB): Met à jour le statut en SYNCED
+```
+
+### 📱 Guide d'Implémentation pour le Frontend (Caisse Locale / Mobile)
+
+#### 1. Stockage Local (Pendant la déconnexion)
+Lorsque la connexion Internet est absente, l'application frontend doit stocker les transactions localement (ex: SQLite, IndexedDB) avec :
+- Un `localId` unique généré localement (ex: UUID v4).
+- Les données de l'entité (`payload`).
+- L'opération correspondante (`CREATE`, `UPDATE`, `DELETE`).
+
+#### 2. Processus d'Envoi au Serveur (Reconnexion)
+Une fois la connexion rétablie, le frontend doit dépiler son stockage local en envoyant chaque action au serveur via le endpoint `POST /api/v1/sync-queue`.
+
+* **Méthode** : `POST`
+* **URL** : `/api/v1/sync-queue`
+* **Headers** :
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <JWT_TOKEN>`
+* **Exemple de payload (Vente hors-ligne)** :
+```json
+{
+  "entityType": "Sale",
+  "localId": "local-uuid-sale-001",
+  "operation": "CREATE",
+  "payload": {
+    "receiptNumber": "VTE-20260522-001",
+    "totalAmount": 15000,
+    "cashierId": "usr_uuid_123",
+    "shopId": "shp_uuid_abc"
+  }
+}
+```
+
+* **Réponse attendue (201 Created)** :
+```json
+{
+  "id": "e9b7201b-9f93-4ee1-b0db-6e69622d1df7",
+  "entityType": "Sale",
+  "localId": "local-uuid-sale-001",
+  "operation": "CREATE",
+  "syncStatus": "PENDING",
+  "retryCount": 0,
+  "lastError": null,
+  "resolvedId": null,
+  "createdAt": "2026-05-22T00:50:00.000Z",
+  "syncedAt": null,
+  "canRetry": true
+}
+```
+
+---
+
+### ⚡ Gestion et Résolution de Conflits (REST API)
+
+Si un item passe en statut `CONFLICT` (ex: doublon de code-barres ou de numéro de reçu sur le serveur central), l'application frontend d'administration ou le POS peut résoudre manuellement ce conflit en envoyant une requête `PATCH /api/v1/sync-queue/:id/resolve`.
+
+#### Stratégies de résolution disponibles :
+
+* **A. `KEEP_LOCAL`** : Écrase le serveur central avec les données envoyées par le client local hors-ligne.
+  ```json
+  {
+    "strategy": "KEEP_LOCAL"
+  }
+  ```
+
+* **B. `KEEP_SERVER`** : Ignore les données locales hors-ligne et conserve celles du serveur central.
+  ```json
+  {
+    "strategy": "KEEP_SERVER",
+    "resolvedId": "srv_uuid_existant"
+  }
+  ```
+
+* **C. `MERGE`** : Fournit une version fusionnée manuellement par l'opérateur.
+  ```json
+  {
+    "strategy": "MERGE",
+    "mergedPayload": {
+      "receiptNumber": "VTE-20260522-001-RESOLVED",
+      "totalAmount": 15000,
+      "cashierId": "usr_uuid_123",
+      "shopId": "shp_uuid_abc"
+    }
+  }
+  ```
+
+---
+
+### ⏰ Tâches de Fond Planifiées (CRON)
+
+Le backend orchestre la synchronisation et le nettoyage automatiquement :
+- **Toutes les 5 minutes** : Traitement automatique de la file par ordre chronologique (FIFO) en batchs de 100.
+- **Toutes les 30 minutes** : Relance automatique des items temporairement en échec (statut `ERROR`, jusqu'à 5 tentatives).
+- **Chaque dimanche à 02:00** : Suppression automatique des anciens items marqués `SYNCED` de plus de 30 jours pour préserver les performances.
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)
