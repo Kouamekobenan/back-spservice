@@ -15,6 +15,12 @@ import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 
+const caseInsensitive = () =>
+  process.env.DATABASE_PROVIDER === 'sqlite'
+    ? {}
+    : { mode: 'insensitive' as const };
+
+
 @Injectable()
 export class CategoryRepository implements ICategoryRepository {
   private readonly logger = new Logger(CategoryRepository.name);
@@ -72,7 +78,7 @@ export class CategoryRepository implements ICategoryRepository {
 
       const where: Prisma.CategoryWhereInput = {};
       if (name) {
-        where.name = { contains: name, mode: 'insensitive' };
+        where.name = { contains: name, ...caseInsensitive() };
       }
 
       const [categories, total] = await Promise.all([

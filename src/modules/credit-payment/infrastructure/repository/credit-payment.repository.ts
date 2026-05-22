@@ -13,6 +13,12 @@ import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 
+const caseInsensitive = () =>
+  process.env.DATABASE_PROVIDER === 'sqlite'
+    ? {}
+    : { mode: 'insensitive' as const };
+
+
 @Injectable()
 export class CreditPaymentRepository implements ICreditPaymentRepository {
   private readonly logger = new Logger(CreditPaymentRepository.name);
@@ -70,7 +76,7 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
       if (search?.customerId) where.customerId = search.customerId;
       if (search?.method) where.method = search.method;
       if (search?.reference) {
-        where.reference = { contains: search.reference, mode: 'insensitive' };
+        where.reference = { contains: search.reference, ...caseInsensitive() };
       }
 
       const [payments, total] = await Promise.all([

@@ -1,0 +1,2 @@
+# placeholder — le dossier prisma/data/ est ignoré par git
+# Les fichiers .db SQLite sont créés automatiquement par Prisma

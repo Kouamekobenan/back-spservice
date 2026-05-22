@@ -449,6 +449,15 @@ Le backend orchestre la synchronisation et le nettoyage automatiquement :
 
 ---
 
+## 🗄️ Mode Offline (SQLite)
+
+L'application supporte un mode de fonctionnement **offline-first** permettant une exécution locale sans connexion internet via **SQLite** (pour Electron et Capacitor), tout en maintenant la compatibilité avec **PostgreSQL** pour le cloud.
+
+Pour comprendre le fonctionnement de l'architecture dual-provider, l'adaptation des schémas, la gestion locale des images, et obtenir le guide complet d'intégration pour le développeur frontend, veuillez consulter le fichier :
+👉 **[README.offline.md](file:///c:/Users/hp/Desktop/back-spservice/README.offline.md)**
+
+---
+
 ## 🛠️ Stack Technique
 
 - **Framework** : [NestJS](https://nestjs.com/) (Node.js)
@@ -467,7 +476,6 @@ npx prisma generate
 npx prisma db push
 npm run start:dev
 ```
-
 ---
 
 ## 📝 Documentation API

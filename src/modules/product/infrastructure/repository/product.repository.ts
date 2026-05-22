@@ -14,6 +14,13 @@ import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 
+// Helper : mode insensible à la casse selon le provider
+// SQLite est nativement insensible à la casse pour les ASCII (pas besoin de mode)
+// PostgreSQL nécessite mode: 'insensitive' pour ignorer la casse
+const isSQLite = () => process.env.DATABASE_PROVIDER === 'sqlite';
+const caseInsensitive = () => (isSQLite() ? {} : { mode: 'insensitive' as const });
+
+
 @Injectable()
 export class ProductRepository implements IProductRepository {
   private readonly logger = new Logger(ProductRepository.name);
@@ -58,9 +65,9 @@ export class ProductRepository implements IProductRepository {
 
       if (search) {
         where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { barcode: { contains: search, mode: 'insensitive' } },
-          { sku: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search, ...caseInsensitive() } },
+          { barcode: { contains: search, ...caseInsensitive() } },
+          { sku: { contains: search, ...caseInsensitive() } },
         ];
       }
 

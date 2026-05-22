@@ -56,3 +56,12 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+
+# SQLite offline database (données locales, ne pas versionner)
+prisma/data/*.db
+prisma/data/*.db-shm
+prisma/data/*.db-wal
+# Dossier uploads local (mode offline)
+uploads/
+# Environnement offline
+.env.offline

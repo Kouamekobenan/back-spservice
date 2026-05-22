@@ -1,9 +1,3 @@
-// ================================================================
-// PRESENTATION LAYER — SyncQueue Controller
-// Endpoints REST documentés avec Swagger.
-// Tous les endpoints sont réservés aux ADMIN / SUPER_ADMIN.
-// ================================================================
-
 import {
   Controller,
   Get,
@@ -62,7 +56,7 @@ export class SyncQueueController {
     private readonly retryUseCase:           RetryFailedItemsUseCase,
     private readonly resolveConflictUseCase: ResolveConflictUseCase,
     @Inject('ISyncQueueRepository')
-    private readonly repo:                   ISyncQueueRepository,
+    private readonly repo:ISyncQueueRepository,
   ) {}
 
   // ── POST /sync-queue ────────────────────────────────────────
@@ -78,7 +72,6 @@ export class SyncQueueController {
   async enqueue(@Body() dto: EnqueueSyncItemDto): Promise<SyncQueueItemResponseDto> {
     return this.enqueueUseCase.execute(dto);
   }
-
   // ── GET /sync-queue/stats ──────────────────────────────────
   @Get('stats')
   @ApiOperation({
@@ -141,7 +134,6 @@ export class SyncQueueController {
     if (!found) throw new NotFoundException(`Item de sync "${id}" introuvable`);
     return toResponseDto(found);
   }
-
   // ── PATCH /sync-queue/:id/resolve ─────────────────────────
   @Patch(':id/resolve')
   @ApiOperation({

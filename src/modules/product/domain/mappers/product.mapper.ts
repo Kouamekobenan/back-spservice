@@ -3,7 +3,16 @@ import { Product } from '../entities/product.entity.js';
 import { CreateProductDto } from '../../application/dtos/create-product.dto.js';
 import { UpdateProductDto } from '../../application/dtos/update-product.dto.js';
 import { Prisma, Product as ProductPrisma } from '@prisma/client';
+/**
+ * toDecimal — convertit un number en Prisma.Decimal
+ * Compatible PostgreSQL (attend Decimal) et SQLite (retourne number).
+ * En mode SQLite, Prisma accepte directement les number pour les champs Float.
+ */
+const toDecimal = (value: number | string): Prisma.Decimal =>
+  new Prisma.Decimal(String(value));
 
+const toDecimalOrNull = (value: number | string | null | undefined): Prisma.Decimal | null =>
+  value != null ? new Prisma.Decimal(String(value)) : null;
 @Injectable()
 export class ProductMapper {
   toPersistence(data: CreateProductDto): Prisma.ProductCreateInput {
@@ -12,12 +21,12 @@ export class ProductMapper {
       barcode: data.barcode,
       sku: data.sku,
       description: data.description,
-      buyingPrice: new Prisma.Decimal(data.buyingPrice),
-      sellingPrice: new Prisma.Decimal(data.sellingPrice),
-      wholeSalePrice: data.wholeSalePrice ? new Prisma.Decimal(data.wholeSalePrice) : null,
-      stockQty: new Prisma.Decimal(data.stockQty || 0),
-      minStockQty: new Prisma.Decimal(data.minStockQty || 5),
-      maxStockQty: data.maxStockQty ? new Prisma.Decimal(data.maxStockQty) : null,
+      buyingPrice: toDecimal(data.buyingPrice),
+      sellingPrice: toDecimal(data.sellingPrice),
+      wholeSalePrice: toDecimalOrNull(data.wholeSalePrice),
+      stockQty: toDecimal(data.stockQty || 0),
+      minStockQty: toDecimal(data.minStockQty || 5),
+      maxStockQty: toDecimalOrNull(data.maxStockQty),
       hasBatchTracking: data.hasBatchTracking || false,
       metadata: data.metadata || null,
       isActive: data.isActive !== undefined ? data.isActive : true,
@@ -58,20 +67,18 @@ export class ProductMapper {
       prismaData.updatedAt,
     );
   }
-
   toUpdatePersistence(data: UpdateProductDto): Prisma.ProductUpdateInput {
     const updateData: Prisma.ProductUpdateInput = {};
-
     if (data.name !== undefined) updateData.name = data.name;
     if (data.barcode !== undefined) updateData.barcode = data.barcode;
     if (data.sku !== undefined) updateData.sku = data.sku;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.buyingPrice !== undefined) updateData.buyingPrice = new Prisma.Decimal(data.buyingPrice);
-    if (data.sellingPrice !== undefined) updateData.sellingPrice = new Prisma.Decimal(data.sellingPrice);
-    if (data.wholeSalePrice !== undefined) updateData.wholeSalePrice = data.wholeSalePrice ? new Prisma.Decimal(data.wholeSalePrice) : null;
-    if (data.stockQty !== undefined) updateData.stockQty = new Prisma.Decimal(data.stockQty);
-    if (data.minStockQty !== undefined) updateData.minStockQty = new Prisma.Decimal(data.minStockQty);
-    if (data.maxStockQty !== undefined) updateData.maxStockQty = data.maxStockQty ? new Prisma.Decimal(data.maxStockQty) : null;
+    if (data.buyingPrice !== undefined) updateData.buyingPrice = toDecimal(data.buyingPrice);
+    if (data.sellingPrice !== undefined) updateData.sellingPrice = toDecimal(data.sellingPrice);
+    if (data.wholeSalePrice !== undefined) updateData.wholeSalePrice = toDecimalOrNull(data.wholeSalePrice);
+    if (data.stockQty !== undefined) updateData.stockQty = toDecimal(data.stockQty);
+    if (data.minStockQty !== undefined) updateData.minStockQty = toDecimal(data.minStockQty);
+    if (data.maxStockQty !== undefined) updateData.maxStockQty = toDecimalOrNull(data.maxStockQty);
     if (data.hasBatchTracking !== undefined) updateData.hasBatchTracking = data.hasBatchTracking;
     if (data.metadata !== undefined) updateData.metadata = data.metadata;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;

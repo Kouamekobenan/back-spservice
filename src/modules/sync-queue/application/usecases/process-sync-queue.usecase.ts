@@ -272,7 +272,7 @@ export class ProcessSyncQueueUseCase {
         await this.repo.save(item);
 
         syncedIds.push(item.id);
-        this.logger.debug(`✅ [${item.entityType}] ${item.localId} → ${resolvedId}`);
+        this.logger.debug(`[${item.entityType}] ${item.localId} → ${resolvedId}`);
 
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -291,9 +291,7 @@ export class ProcessSyncQueueUseCase {
           item.markAsError(errorMsg);
           this.logger.error(`❌ ERROR [${item.entityType}] ${item.localId}: ${errorMsg}`);
         }
-
         await this.repo.save(item);
-
         errors.push({
           id:         item.id,
           localId:    item.localId,
@@ -302,7 +300,6 @@ export class ProcessSyncQueueUseCase {
         });
       }
     }
-
     const result: ProcessSyncResultDto = {
       processed:  pendingItems.length,
       succeeded:  syncedIds.length,
@@ -312,11 +309,9 @@ export class ProcessSyncQueueUseCase {
       syncedIds,
       errors,
     };
-
     this.logger.log(
       `Sync terminée: ${result.succeeded} OK | ${result.failed} erreurs | ${result.conflicts} conflits | ${result.durationMs}ms`,
     );
-
     return result;
   }
 }

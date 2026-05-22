@@ -15,6 +15,12 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../../prisma/prisma.service';
 import { PaginatedResponseRepository } from '../../../../../common/types/response-respository';
 
+const caseInsensitive = () =>
+  process.env.DATABASE_PROVIDER === 'sqlite'
+    ? {}
+    : { mode: 'insensitive' as const };
+
+
 @Injectable()
 export class UserRepository implements IUserRepository {
   private readonly logger = new Logger(UserRepository.name);
@@ -175,11 +181,11 @@ export class UserRepository implements IUserRepository {
     if (search) {
       if (search.name?.trim())
         orFilters.push({
-          name: { contains: search.name.trim(), mode: 'insensitive' },
+          name: { contains: search.name.trim(), ...caseInsensitive() },
         });
       if (search.phone?.trim())
         orFilters.push({
-          phone: { contains: search.phone.trim(), mode: 'insensitive' },
+          phone: { contains: search.phone.trim(), ...caseInsensitive() },
         });
     }
     if (orFilters.length > 0) where.OR = orFilters;

@@ -15,6 +15,12 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseRepository } from '../../../common/types/response-respository.js';
 
+const caseInsensitive = () =>
+  process.env.DATABASE_PROVIDER === 'sqlite'
+    ? {}
+    : { mode: 'insensitive' as const };
+
+
 @Injectable()
 export class SupplierRepository implements ISupplierRepository {
   private readonly logger = new Logger(SupplierRepository.name);
@@ -69,13 +75,13 @@ export class SupplierRepository implements ISupplierRepository {
 
       const where: Prisma.SupplierWhereInput = {};
       if (name) {
-        where.name = { contains: name, mode: 'insensitive' };
+        where.name = { contains: name, ...caseInsensitive() };
       }
       if (email) {
-        where.email = { contains: email, mode: 'insensitive' };
+        where.email = { contains: email, ...caseInsensitive() };
       }
       if (phone) {
-        where.phone = { contains: phone, mode: 'insensitive' };
+        where.phone = { contains: phone, ...caseInsensitive() };
       }
 
       const [suppliers, total] = await Promise.all([

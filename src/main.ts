@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/execeptions/http.exception.filter';
+import * as express from 'express';
+import { join } from 'path';
 
 async function bootstrap() {
 
@@ -33,6 +35,9 @@ async function bootstrap() {
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
 
   app.setGlobalPrefix(apiPrefix);
+
+  // Servir les uploads locaux de manière statique pour le mode offline
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   // ─────────────────────────────────────────────
   // 3. CONFIGURATION CORS
   // ─────────────────────────────────────────────
@@ -42,9 +47,12 @@ async function bootstrap() {
     'http://localhost:5173',
     'http://127.0.0.1:3000',
     'https://stockpro-delta.vercel.app',
-   'https://back-spservice-production.up.railway.app',
-   'capacitor-electron://-', 
-  'capacitor://localhost', 
+    'https://back-spservice-production.up.railway.app',
+    'capacitor-electron://-',
+    'capacitor://localhost',
+    'app://.',            // ← Electron (protocole custom Capacitor-Electron)
+    'file://',            // ← Electron (fichiers locaux)
+    'http://localhost',   // ← Capacitor Android (WebView)
   ];
 
   if (process.env.NODE_ENV !== 'production') {

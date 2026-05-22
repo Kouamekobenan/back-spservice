@@ -8,6 +8,12 @@ import { AuditLog } from '../../domain/entities/audit-log.entity.js';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 import { Prisma } from '@prisma/client';
 
+const caseInsensitive = () =>
+  process.env.DATABASE_PROVIDER === 'sqlite'
+    ? {}
+    : { mode: 'insensitive' as const };
+
+
 @Injectable()
 export class AuditLogRepository implements IAuditLogRepository {
   private readonly logger = new Logger(AuditLogRepository.name);
@@ -93,7 +99,7 @@ export class AuditLogRepository implements IAuditLogRepository {
 
     if (filter) {
       if (filter.action) where.action = filter.action;
-      if (filter.entityType) where.entityType = { contains: filter.entityType, mode: 'insensitive' };
+      if (filter.entityType) where.entityType = { contains: filter.entityType, ...caseInsensitive() };
       if (filter.entityId) where.entityId = filter.entityId;
       if (filter.userId) where.userId = filter.userId;
       if (filter.shopId) where.shopId = filter.shopId;
