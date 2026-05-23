@@ -50,7 +50,6 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       },
     });
   }
-
   async onModuleInit() {
     const provider = this.configService.get<string>('DATABASE_PROVIDER', 'postgres');
 
@@ -70,7 +69,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       const { PrismaClient } = await import(
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore — client généré au moment du build, pas en dev sans generate
-        '.prisma/client-sqlite' as any
+        '../../node_modules/.prisma/client-sqlite/index.js' as any
       );
 
       this.client = new PrismaClient({

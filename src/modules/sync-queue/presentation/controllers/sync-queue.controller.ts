@@ -23,7 +23,6 @@ import {
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../auth/guards/role.guard.js';
 import { Roles } from '../../../auth/decorators/roles.decorators.js';
-
 import { EnqueueSyncItemUseCase }   from '../../application/usecases/enqueue-sync-item.usecase.js';
 import { GetSyncQueueUseCase }      from '../../application/usecases/get-sync-queue.usecase.js';
 import { ProcessSyncQueueUseCase }  from '../../application/usecases/process-sync-queue.usecase.js';
@@ -44,9 +43,6 @@ import {
 } from '../../application/dtos/sync-queue.dto.js';
 
 @ApiTags('sync-queue')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('sync-queue')
 export class SyncQueueController {
   constructor(
