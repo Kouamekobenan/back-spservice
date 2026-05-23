@@ -1,7 +1,8 @@
 # SP-Services Backend V1.0 🚀
+
 ### Gestion de Services - Superette & Quincaillerie
 
-Bienvenue dans le backend de **SP-Services**, une plateforme robuste conçue pour la gestion moderne des commerces multi-boutiques (Superettes, Quincailleries, Dépôts de Gaz, etc.). 
+Bienvenue dans le backend de **SP-Services**, une plateforme robuste conçue pour la gestion moderne des commerces multi-boutiques (Superettes, Quincailleries, Dépôts de Gaz, etc.).
 
 Cette application est construite avec **NestJS** en suivant les principes de l'**Architecture Orientée Domaine (DDD)** pour garantir scalabilité, maintenabilité et robustesse.
 
@@ -22,15 +23,16 @@ Le projet respecte une architecture en couches (Clean Architecture / DDD) :
 
 Le système gère 5 niveaux d'accès distincts pour assurer une sécurité maximale et une séparation des responsabilités :
 
-| Rôle | Description | Portée |
-| :--- | :--- | :--- |
-| **SUPER_ADMIN** | Accès total et absolu à l'ensemble du système (tous les shops). | Global |
-| **ADMIN** | Accès total à une ou plusieurs boutiques assignées. | Multi-Shops |
-| **MANAGER** | Gère les stocks et rapports sur les boutiques assignées. | Multi-Shops |
-| **CASHIER** | Utilise l'interface POS pour les boutiques assignées. | Point de Vente |
-| **AUDITOR** | Accès en lecture seule sur les boutiques assignées. | Audit |
+| Rôle            | Description                                                     | Portée         |
+| :-------------- | :-------------------------------------------------------------- | :------------- |
+| **SUPER_ADMIN** | Accès total et absolu à l'ensemble du système (tous les shops). | Global         |
+| **ADMIN**       | Accès total à une ou plusieurs boutiques assignées.             | Multi-Shops    |
+| **MANAGER**     | Gère les stocks et rapports sur les boutiques assignées.        | Multi-Shops    |
+| **CASHIER**     | Utilise l'interface POS pour les boutiques assignées.           | Point de Vente |
+| **AUDITOR**     | Accès en lecture seule sur les boutiques assignées.             | Audit          |
 
 ### Sécurité des accès (ShopAccessGuard) :
+
 Le système utilise un `ShopAccessGuard` qui valide chaque requête. Si un utilisateur tente d'accéder à un `shopId` qui n'est pas dans sa liste d'accès autorisés, le système renvoie une erreur `403 Forbidden`, sauf s'il possède le rôle `SUPER_ADMIN`.
 
 ---
@@ -40,6 +42,7 @@ Le système utilise un `ShopAccessGuard` qui valide chaque requête. Si un utili
 Le système est conçu pour être **Multi-Boutiques**. Contrairement à une structure classique, un utilisateur n'est pas limité à une seule boutique.
 
 ### Caractéristiques principales :
+
 - **Accès Multiples (N-à-N)** : Un utilisateur peut être affecté à plusieurs boutiques via la table `UserShopAccess`.
 - **Rôles Granulaires** : Possibilité de définir un rôle spécifique par boutique (ex: Admin dans la Boutique A, Auditeur dans la Boutique B).
 - **Isolation Dynamique** : Les données restent isolées par `shopId`, mais le système vérifie dynamiquement les permissions de l'utilisateur sur chaque ID demandé.
@@ -52,6 +55,7 @@ Le système est conçu pour être **Multi-Boutiques**. Contrairement à une stru
 Le module **Category** permet une classification arborescente des produits.
 
 ### Fonctionnement Parent/Enfant :
+
 ```mermaid
 graph TD
     A[Alimentation] --> B[Boissons]
@@ -67,6 +71,7 @@ graph TD
 Le module **Unit** standardise les mesures pour tout le catalogue.
 
 ### Points clés :
+
 - **Standardisation** : Définit les unités (Kg, Litre, Pièce, Carton, etc.).
 - **Conversion Visuelle** : Stockage des abréviations (pcs, kg, L) pour les reçus et étiquettes.
 - **Impact Inventaire** : Crucial pour les calculs de stock et les ventes au détail.
@@ -78,6 +83,7 @@ Le module **Unit** standardise les mesures pour tout le catalogue.
 Le module **Product** est le noyau central de l'application. Il lie toutes les entités pour permettre la vente et la gestion de stock.
 
 ### Architecture du Produit :
+
 ```mermaid
 erDiagram
     SHOP ||--o{ PRODUCT : "possède"
@@ -97,6 +103,7 @@ erDiagram
 ```
 
 ### Logique Métier Avancée :
+
 - **Isolation Critique** : Un code-barres est unique **par boutique**. Cela permet à deux commerces différents d'utiliser le même backend pour leurs propres stocks.
 - **Seuils d'Alerte** : Chaque produit possède un `minStockQty`. Le backend expose des endpoints d'alerte pour notifier le frontend des ruptures imminentes.
 - **Métadonnées Flexibles** : Le champ `metadata` permet d'ajouter des spécificités métier (ex: type de gaz, poids net, dimensions) sans changer la structure de la base de données.
@@ -109,6 +116,7 @@ erDiagram
 Le module **ProductComponent** permet de créer des offres groupées ou des produits transformés à partir de composants de base.
 
 ### Fonctionnalités :
+
 - **Composition Flexible** : Liez plusieurs produits (composants) à un produit maître (kit).
 - **Gestion des Quantités** : Définissez précisément la quantité de chaque composant utilisée dans le kit.
 - **Réduction de Stock** : (Prévu) La vente d'un kit peut automatiquement déduire les stocks de ses composants.
@@ -121,6 +129,7 @@ Le module **ProductComponent** permet de créer des offres groupées ou des prod
 Le module **ProductBatch** assure la traçabilité et la sécurité alimentaire/sanitaire du catalogue.
 
 ### Fonctionnalités :
+
 - **Suivi par Lot** : Chaque arrivage est identifié par un numéro de lot unique.
 - **Gestion des Dates (DLC/DLUO)** : Surveillance automatique des dates d'expiration.
 - **Alertes Proactives** : Extraction des lots arrivant à échéance pour éviter les pertes.
@@ -133,6 +142,7 @@ Le module **ProductBatch** assure la traçabilité et la sécurité alimentaire/
 Le module **Customer** centralise la gestion de la relation client et le suivi des balances financières.
 
 ### Fonctionnalités Clés :
+
 - **Suivi des Dettes (Balance)** : Monitoring en temps réel de la dette totale (`totalDebt`) pour chaque client.
 - **Gestion des Risques** : Définition de plafonds de crédit (`creditLimit`) pour limiter l'exposition financière.
 - **Support Offline-First** : Création et modification de clients en mode hors-ligne avec synchronisation intelligente.
@@ -145,6 +155,7 @@ Le module **Customer** centralise la gestion de la relation client et le suivi d
 Le module **CreditPayment** gère le recouvrement des dettes et assure l'intégrité des flux financiers.
 
 ### Fonctionnalités Clés :
+
 - **Transactions Atomiques** : Chaque règlement met à jour instantanément la dette du client via des transactions de base de données sécurisées.
 - **Multi-Modes de Paiement** : Support complet pour les règlements en espèces, Mobile Money (avec référence) et carte bancaire.
 - **Traçabilité & Audit** : Archivage précis de chaque versement avec notes explicatives pour un rapprochement comptable facilité.
@@ -157,6 +168,7 @@ Le module **CreditPayment** gère le recouvrement des dettes et assure l'intégr
 Le module **Supplier** centralise la base de données des partenaires commerciaux pour optimiser la chaîne d'approvisionnement.
 
 ### Fonctionnalités Clés :
+
 - **Répertoire de Contact** : Centralisation des coordonnées (nom, contact direct, téléphone, email, adresse).
 - **Historique des Approvisionnements** : Liaison directe avec les bons de commande (`PurchaseOrder`).
 - **Gestion du Statut** : Activation ou désactivation des fournisseurs pour le filtrage lors des commandes.
@@ -170,6 +182,7 @@ Le module **Supplier** centralise la base de données des partenaires commerciau
 Le module **PurchaseOrder** gère l'approvisionnement des stocks et la traçabilité des entrées de marchandises.
 
 ### Cycle de vie d'une Commande :
+
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT : Création
@@ -183,6 +196,7 @@ stateDiagram-v2
 ```
 
 ### Fonctionnalités Clés :
+
 - **Suivi de Statut** : Gestion rigoureuse des états (DRAFT, SENT, PARTIALLY_RECEIVED, RECEIVED, CANCELLED).
 - **Réception Intelligente** : Mise à jour automatique du stock physique et du prix d'achat lors de la réception.
 - **Traçabilité Totale** : Chaque réception génère un `StockMovement` (PURCHASE) lié au bon de commande pour l'audit.
@@ -196,6 +210,7 @@ stateDiagram-v2
 Le module **CashSession** assure le contrôle rigoureux des flux de trésorerie quotidiens et la responsabilité des caissiers.
 
 ### Fonctionnalités Clés :
+
 - **Réconciliation de Caisse** : Calcul automatique du solde attendu (`expectedBalance`) basé sur les ventes réelles par rapport au fond de caisse initial.
 - **Suivi des Écarts** : Identification immédiate des surplus ou manquants de caisse (`difference`) lors de la clôture pour un audit simplifié.
 - **Gestion de la Responsabilité** : Verrouillage logique empêchant un opérateur d'ouvrir plusieurs sessions simultanées, garantissant une traçabilité sans faille.
@@ -208,6 +223,7 @@ Le module **CashSession** assure le contrôle rigoureux des flux de trésorerie 
 Le module **Sale** est le moteur transactionnel central qui orchestre les stocks, les finances et la relation client.
 
 ### Fonctionnalités Clés :
+
 - **Paniers Multi-Articles** : Traitement de paniers complexes avec prix unitaires et remises spécifiques par ligne.
 - **Paiements Mixtes** : Support de plusieurs modes de règlement (Espèces, Carte, Mobile Money, Crédit) pour une même vente.
 - **Synchronisation Atomique du Stock** : Réduction en temps réel des stocks et traçabilité de chaque mouvement via `StockMovement`.
@@ -215,6 +231,7 @@ Le module **Sale** est le moteur transactionnel central qui orchestre les stocks
 - **Facturation Intelligente** : Génération de numéros de reçus uniques et normalisés (ex: `VTE-20260510-0001`).
 
 ### Flux de Communication d'une Vente :
+
 ```mermaid
 sequenceDiagram
     participant FE as Frontend
@@ -252,12 +269,14 @@ sequenceDiagram
 Le module **StockTransfer** gère le mouvement de marchandises entre différentes boutiques du réseau, assurant une traçabilité parfaite et la cohérence des inventaires.
 
 ### Fonctionnalités Clés :
+
 - **Flux de Validation en 2 Étapes** : Un transfert est créé en `PENDING` (sortie de stock boutique source) puis confirmé en `COMPLETED` (entrée de stock boutique destination).
 - **Auto-Clonage de Produits** : Si un produit transféré n'existe pas encore dans la boutique de destination (recherche par SKU/Barcode), le système le crée automatiquement pour fluidifier le processus.
 - **Annulation Sécurisée** : L'annulation d'un transfert réintègre instantanément les produits dans la boutique d'origine avec un mouvement d'ajustement.
 - **Traçabilité Multi-Boutiques** : Chaque étape génère des `StockMovement` spécifiques (`TRANSFER_OUT`, `TRANSFER_IN`, `ADJUSTMENT`) liés à l'ID du transfert.
 
 ### Cycle de vie d'un Transfert :
+
 ```mermaid
 sequenceDiagram
     participant S1 as Boutique Source
@@ -267,7 +286,7 @@ sequenceDiagram
     S1->>ST: Créer Transfert (PENDING)
     Note over ST: Stock Source décrémenté (-)
     Note over ST: Movement TRANSFER_OUT créé
-    
+
     alt Acceptation
         S2->>ST: Confirmer Réception (COMPLETED)
         Note over ST: Stock Destination incrémenté (+)
@@ -286,6 +305,7 @@ sequenceDiagram
 Le module **Expense** permet un suivi rigoureux des sorties de trésorerie opérationnelles de chaque boutique (Loyer, Factures, Salaires, etc.).
 
 ### Fonctionnalités Clés :
+
 - **Catégorisation Standardisée** : Classification par types (RENT, UTILITIES, SALARY, etc.) pour des rapports financiers précis.
 - **Gestion des Récurrences** : Possibilité de marquer des dépenses comme récurrentes avec un jour spécifique du mois.
 - **Justificatifs Numériques** : Support pour l'enregistrement d'URLs vers des preuves d'achat ou factures (receiptUrl).
@@ -299,6 +319,7 @@ Le module **Expense** permet un suivi rigoureux des sorties de trésorerie opér
 Le module **ShopSetting** permet de personnaliser le comportement et l'apparence de chaque boutique de manière dynamique.
 
 ### Fonctionnalités Clés :
+
 - **Clé-Valeur Flexible** : Stockage de paramètres sous forme de paires `key` / `value` (ex: `receipt_footer`, `tax_rate`, `low_stock_threshold`).
 - **Groupement Logique** : Organisation des paramètres par groupes (`receipt`, `tax`, `sync`, `display`) pour une gestion simplifiée.
 - **Upsert Intelligent** : Un seul endpoint pour créer ou mettre à jour un paramètre, évitant les erreurs de doublons.
@@ -312,12 +333,14 @@ Le module **ShopSetting** permet de personnaliser le comportement et l'apparence
 Le module **AuditLog** est le système de surveillance central qui enregistre toutes les actions critiques effectuées sur la plateforme pour garantir une sécurité et une transparence maximales.
 
 ### Fonctionnalités Clés :
+
 - **Capture d'État (Snapshots)** : Enregistre l'état des données avant (`dataBefore`) et après (`dataAfter`) chaque modification, permettant un retour en arrière ou une analyse précise des erreurs.
 - **Contexte Complet** : Chaque log capture l'auteur de l'action, la boutique concernée, l'adresse IP et l'agent utilisateur (navigateur/appareil).
 - **Actions Supervisées** : Suit les créations, mises à jour, suppressions, connexions/déconnexions, annulations de ventes, changements de prix et ajustements de stock.
 - **Filtrage Multidimensionnel** : Recherche puissante par période, utilisateur, type d'entité (ex: "Product", "Sale") ou action spécifique.
 
 ### Architecture de l'Audit :
+
 ```mermaid
 graph LR
     A[Utilisateur/Système] --> B{Action Critique}
@@ -333,44 +356,48 @@ graph LR
 Le module **SyncQueue** est le cœur de la stratégie **Offline-First** de l'ERP. Il permet d'enregistrer temporairement en local (côté caisse/frontend) les opérations effectuées en mode déconnecté, puis de les synchroniser de manière séquentielle et sécurisée lorsque la connexion est rétablie.
 
 ### Architecture de Synchronisation (Offline-First) :
-```mermaid
-sequenceDiagram
-    participant Client (Offline)
-    participant API Gateway
-    participant SyncQueue (DB)
-    participant CRON / Dispatcher
-    participant Module Métier (ex: Sale)
 
-    Note over Client (Offline): Connexion perdue. Actions stockées localement.
-    Note over Client (Offline): Connexion restaurée.
-    Client (Offline)->>API Gateway: POST /api/v1/sync-queue (Enqueue actions)
-    API Gateway->>SyncQueue (DB): Enregistre les actions en statut PENDING
-    API Gateway-->>Client (Offline): 201 Created (ID Sync pris en compte)
-    
-    Note over CRON / Dispatcher: Exécution CRON toutes les 5 minutes
-    CRON / Dispatcher->>SyncQueue (DB): Récupère les items PENDING (FIFO)
-    CRON / Dispatcher->>Module Métier (ex: Sale): Applique la vente localId
-    Module Métier (ex: Sale)->>CRON / Dispatcher: Retourne l'ID serveur créé
-    CRON / Dispatcher->>SyncQueue (DB): Met à jour le statut en SYNCED
+```mermaidsequenceDiagram
+    participant Client as Client (Offline)
+    participant Gateway as API Gateway
+    participant DB as SyncQueue (DB)
+    participant CRON as CRON / Dispatcher
+    participant Module as Module Métier (ex: Sale)
+
+    Note over Client: Connexion perdue. Actions stockées localement.
+    Note over Client: Connexion restaurée.
+    Client->>Gateway: POST /api/v1/sync-queue (Enqueue actions)
+    Gateway->>DB: Enregistre les actions en statut PENDING
+    Gateway-->>Client: 201 Created (ID Sync pris en compte)
+
+    Note over CRON: Exécution CRON toutes les 5 minutes
+    CRON->>DB: Récupère les items PENDING (FIFO)
+    CRON->>Module: Applique la vente localId
+    Module->>CRON: Retourne l'ID serveur créé
+    CRON->>DB: Met à jour le statut en SYNCED
 ```
 
 ### 📱 Guide d'Implémentation pour le Frontend (Caisse Locale / Mobile)
 
 #### 1. Stockage Local (Pendant la déconnexion)
+
 Lorsque la connexion Internet est absente, l'application frontend doit stocker les transactions localement (ex: SQLite, IndexedDB) avec :
+
 - Un `localId` unique généré localement (ex: UUID v4).
 - Les données de l'entité (`payload`).
 - L'opération correspondante (`CREATE`, `UPDATE`, `DELETE`).
 
 #### 2. Processus d'Envoi au Serveur (Reconnexion)
+
 Une fois la connexion rétablie, le frontend doit dépiler son stockage local en envoyant chaque action au serveur via le endpoint `POST /api/v1/sync-queue`.
 
-* **Méthode** : `POST`
-* **URL** : `/api/v1/sync-queue`
-* **Headers** :
+- **Méthode** : `POST`
+- **URL** : `/api/v1/sync-queue`
+- **Headers** :
   - `Content-Type: application/json`
   - `Authorization: Bearer <JWT_TOKEN>`
-* **Exemple de payload (Vente hors-ligne)** :
+- **Exemple de payload (Vente hors-ligne)** :
+
 ```json
 {
   "entityType": "Sale",
@@ -385,7 +412,8 @@ Une fois la connexion rétablie, le frontend doit dépiler son stockage local en
 }
 ```
 
-* **Réponse attendue (201 Created)** :
+- **Réponse attendue (201 Created)** :
+
 ```json
 {
   "id": "e9b7201b-9f93-4ee1-b0db-6e69622d1df7",
@@ -410,14 +438,16 @@ Si un item passe en statut `CONFLICT` (ex: doublon de code-barres ou de numéro 
 
 #### Stratégies de résolution disponibles :
 
-* **A. `KEEP_LOCAL`** : Écrase le serveur central avec les données envoyées par le client local hors-ligne.
+- **A. `KEEP_LOCAL`** : Écrase le serveur central avec les données envoyées par le client local hors-ligne.
+
   ```json
   {
     "strategy": "KEEP_LOCAL"
   }
   ```
 
-* **B. `KEEP_SERVER`** : Ignore les données locales hors-ligne et conserve celles du serveur central.
+- **B. `KEEP_SERVER`** : Ignore les données locales hors-ligne et conserve celles du serveur central.
+
   ```json
   {
     "strategy": "KEEP_SERVER",
@@ -425,7 +455,7 @@ Si un item passe en statut `CONFLICT` (ex: doublon de code-barres ou de numéro 
   }
   ```
 
-* **C. `MERGE`** : Fournit une version fusionnée manuellement par l'opérateur.
+- **C. `MERGE`** : Fournit une version fusionnée manuellement par l'opérateur.
   ```json
   {
     "strategy": "MERGE",
@@ -443,6 +473,7 @@ Si un item passe en statut `CONFLICT` (ex: doublon de code-barres ou de numéro 
 ### ⏰ Tâches de Fond Planifiées (CRON)
 
 Le backend orchestre la synchronisation et le nettoyage automatiquement :
+
 - **Toutes les 5 minutes** : Traitement automatique de la file par ordre chronologique (FIFO) en batchs de 100.
 - **Toutes les 30 minutes** : Relance automatique des items temporairement en échec (statut `ERROR`, jusqu'à 5 tentatives).
 - **Chaque dimanche à 02:00** : Suppression automatique des anciens items marqués `SYNCED` de plus de 30 jours pour préserver les performances.
@@ -476,7 +507,9 @@ npx prisma generate
 npx prisma db push
 npm run start:dev
 ```
+
 ---
 
 ## 📝 Documentation API
+
 Une fois le serveur lancé, accédez à Swagger : `http://localhost:3001/api/v1/docs`
