@@ -44,6 +44,10 @@ export class RefreshTokenUseCase {
     return {
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken, // C'est ce token EN CLAIR qui sera stocké
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
+      tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
     };
   }
 }

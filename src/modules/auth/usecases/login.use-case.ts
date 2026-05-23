@@ -24,7 +24,10 @@ export class LoginUserUseCase {
     password: string,
   ): Promise<{
     user: User;
+    accessToken: string;
+    refreshToken: string;
     token: { accessToken: string; refreshToken: string };
+    tokens: { accessToken: string; refreshToken: string };
   }> {
     // 🔍 1️⃣ Vérifie si l'utilisateur existe
     const user = await this.userRepository.findByPhone(phone);
@@ -65,6 +68,12 @@ export class LoginUserUseCase {
     );
     await this.userRepository.lastConnect(user.getId());
     //  4️Retourne le résultat
-    return { user, token: { accessToken, refreshToken } };
+    return {
+      user,
+      accessToken,
+      refreshToken,
+      token: { accessToken, refreshToken },
+      tokens: { accessToken, refreshToken },
+    };
   }
 }

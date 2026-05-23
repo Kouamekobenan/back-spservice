@@ -54,7 +54,10 @@ export class RegisterUserUseCase {
     );
     return {
       message: 'Compte créé avec succès.',
+      accessToken,
+      refreshToken,
       tokens: { accessToken, refreshToken },
+      token: { accessToken, refreshToken },
     };
   }
 }

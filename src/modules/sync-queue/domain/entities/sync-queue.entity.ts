@@ -45,6 +45,7 @@ export class EntityType {
     'StockMovement',
     'Product',
     'Customer',
+    'Supplier',
     'Expense',
     'CashSession',
     'PurchaseOrder',

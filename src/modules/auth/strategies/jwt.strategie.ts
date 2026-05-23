@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const secret = configService.get('JWT_SECRET');
+    const secret = configService.get('JWT_ACCESS_SECRET') || configService.get('JWT_SECRET');
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,

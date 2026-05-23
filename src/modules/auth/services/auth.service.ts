@@ -42,7 +42,7 @@ export class AuthService {
         role: payload.role,
       },
       {
-        secret: process.env.JWT_ACCESS_SECRET,
+        secret: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
         expiresIn: '15m', // durée de vie du access token
       },
     );
@@ -54,7 +54,7 @@ export class AuthService {
         role: payload.role,
       },
       {
-        secret: process.env.REFRESH_TOKEN_SECRET,
+        secret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET,
         expiresIn: '7d', // durée de vie du refresh token
       },
     );
@@ -66,7 +66,7 @@ export class AuthService {
   async verifyRefreshToken(token: string): Promise<any> {
     try {
       return this.jwtService.verify(token, {
-        secret: process.env.REFRESH_TOKEN_SECRET,
+        secret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET,
       });
     } catch (error) {
       return null;
