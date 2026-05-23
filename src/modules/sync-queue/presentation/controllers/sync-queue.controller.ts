@@ -54,7 +54,6 @@ export class SyncQueueController {
     @Inject('ISyncQueueRepository')
     private readonly repo:ISyncQueueRepository,
   ) {}
-
   // ── POST /sync-queue ────────────────────────────────────────
   @Post()
   @HttpCode(HttpStatus.CREATED)
