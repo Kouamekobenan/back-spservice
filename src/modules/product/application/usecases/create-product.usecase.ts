@@ -9,7 +9,6 @@ export class CreateProductUseCase {
     @Inject('IProductRepository')
     private readonly productRepository: IProductRepository,
   ) {}
-
   async execute(data: CreateProductDto): Promise<ProductResponseDto> {
     // Générer un code-barres unique s'il n'est pas fourni
     if (!data.barcode) {
@@ -22,15 +21,13 @@ export class CreateProductUseCase {
         throw new ConflictException(`Un produit avec le code-barres ${data.barcode} existe déjà dans cette boutique.`);
       }
     }
-    // Vérifier l'unicité du SKU dans la boutique
-    if (data.sku) {
-      const existingSku = await this.productRepository.findBySku(data.sku, data.shopId);
-      if (existingSku) {
-        throw new ConflictException(`Un produit avec le SKU ${data.sku} existe déjà dans cette boutique.`);
-      }
-    }
+     // Format: SK-TIMESTAMP-RANDOM
 
-    const product = await this.productRepository.create(data);
+// Simple et efficace
+    const sku = `SK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+// Résultat: SK-L8X9K2M-A7F3
+    const product = await this.productRepository.create({...data, sku});
     return ProductResponseDto.fromDomain(product);
   }
 }
