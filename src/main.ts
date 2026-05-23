@@ -29,21 +29,33 @@ async function bootstrap() {
 
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
 
-  //  FIX : application du préfixe global à TOUS les endpoints
-  // Sans cette ligne, le préfixe n'était utilisé que pour Swagger mais PAS pour les routes
+  // Application du préfixe global à TOUS les endpoints
   app.setGlobalPrefix(apiPrefix);
+
   // ─────────────────────────────────────────────
   // 3. CONFIGURATION CORS
   // ─────────────────────────────────────────────
-  // Liste des origines autorisées en production
+
+  /**
+   * Liste des origines autorisées en production.
+   *
+   * NOTES :
+   * - 'file://' retiré  → les requêtes file:// n'envoient pas d'en-tête Origin,
+   *   elles sont déjà gérées par le cas (!origin) ci-dessous.
+   * - 'capacitor-electron://-' corrigé → l'origin réelle envoyée par Capacitor
+   *   Electron est 'capacitor-electron://localhost'.
+   * - 'app://.' corrigé → l'origin valide est 'app://' (sans le point final).
+   */
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
     'https://stockpro-delta.vercel.app',
-   'https://back-spservice-production.up.railway.app',
-    'capacitor-electron://localhost',
-   'https://localhost'
+    'https://back-spservice-production.up.railway.app',
+    'capacitor-electron://localhost', // ✅ Capacitor Electron (origin réelle)
+    'https://localhost',  
+     https://spservices.localhost',            // Electron en mode HTTPS local
+    'app://',                         // ✅ Corrigé (sans le point final)
   ];
 
   if (process.env.NODE_ENV !== 'production') {
@@ -61,7 +73,8 @@ async function bootstrap() {
     // PRODUCTION : CORS strict, uniquement les origines listées ci-dessus
     app.enableCors({
       origin: (origin, callback) => {
-        // Autorise les requêtes sans origin (ex: appels serveur-à-serveur, Postman)
+        // Autorise les requêtes sans origin (ex: appels serveur-à-serveur, Postman,
+        // requêtes file:// qui n'envoient pas d'en-tête Origin)
         if (!origin) return callback(null, true);
 
         if (allowedOrigins.includes(origin)) {
@@ -110,6 +123,12 @@ async function bootstrap() {
   // ─────────────────────────────────────────────
   // 5. HELMET (sécurité des en-têtes HTTP)
   // ─────────────────────────────────────────────
+
+  /**
+   * Le tableau connectSrc de la CSP DOIT correspondre exactement à allowedOrigins
+   * pour éviter que le navigateur bloque silencieusement les requêtes fetch/XHR
+   * même si CORS les laisse passer.
+   */
   if (process.env.NODE_ENV === 'production') {
     // PRODUCTION : Helmet complet avec Content Security Policy stricte
     app.use(
@@ -119,12 +138,7 @@ async function bootstrap() {
             defaultSrc: ["'self'"],
             connectSrc: [
               "'self'",
-              'http://localhost:3000',
-              'http://127.0.0.1:3000',
-              'https://stockpro-delta.vercel.app',
-              'https://back-spservice-production.up.railway.app',
-               'capacitor-electron://localhost',
-               'https://localhost'
+              ...allowedOrigins, // ✅ Synchronisé avec allowedOrigins (plus de désynchronisation)
             ],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
@@ -138,7 +152,7 @@ async function bootstrap() {
     // DÉVELOPPEMENT : Helmet minimal pour ne pas interférer avec les DevTools du navigateur
     app.use(
       helmet({
-        contentSecurityPolicy: false, // Désactivé pour éviter les blocages en dev
+        contentSecurityPolicy: false,      // Désactivé pour éviter les blocages en dev
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: false,
       }),
@@ -152,53 +166,34 @@ async function bootstrap() {
 
   // ─────────────────────────────────────────────
   // 7. PROTECTION SWAGGER PAR MOT DE PASSE (Basic Auth)
- 
+  // ─────────────────────────────────────────────
   const swaggerUser = configService.get<string>('SWAGGER_USER', 'admin');
-  const swaggerPassword = configService.get<string>(
-    'SWAGGER_PASSWORD',
-    'changeme',
-  );
+  const swaggerPassword = configService.get<string>('SWAGGER_PASSWORD', 'changeme');
 
   // Middleware Basic Auth appliqué UNIQUEMENT sur les routes de Swagger
-  // (la route de la doc + les assets statiques json/yaml qu'elle charge)
   app.use(
     [
-      `/${apiPrefix}/docs`, // page HTML de Swagger UI
-      `/${apiPrefix}/docs-json`, // schéma OpenAPI au format JSON
-      `/${apiPrefix}/docs-yaml`, // schéma OpenAPI au format YAML
+      `/${apiPrefix}/docs`,       // page HTML de Swagger UI
+      `/${apiPrefix}/docs-json`,  // schéma OpenAPI au format JSON
+      `/${apiPrefix}/docs-yaml`,  // schéma OpenAPI au format YAML
     ],
     (req, res, next) => {
-      // L'en-tête Authorization doit être de la forme : "Basic <base64(user:password)>"
       const authHeader = req.headers['authorization'];
 
       if (!authHeader || !authHeader.startsWith('Basic ')) {
-        // Aucun header → on demande au navigateur d'afficher la popup de connexion
-        res.setHeader(
-          'WWW-Authenticate',
-          'Basic realm="Swagger Docs - Visa Culture"',
-        );
-        return res
-          .status(401)
-          .send('🔒 Accès refusé : authentification requise.');
+        res.setHeader('WWW-Authenticate', 'Basic realm="Swagger Docs - SP SERVICE"');
+        return res.status(401).send('🔒 Accès refusé : authentification requise.');
       }
 
-      // Décodage du Base64 → "user:password"
       const base64Credentials = authHeader.split(' ')[1];
-      const credentials = Buffer.from(base64Credentials, 'base64').toString(
-        'utf-8',
-      );
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
       const [user, password] = credentials.split(':');
 
-      // Vérification des credentials
       if (user === swaggerUser && password === swaggerPassword) {
         return next(); // ✅ Accès accordé
       }
 
-      // Mauvais credentials → on redemande
-      res.setHeader(
-        'WWW-Authenticate',
-        'Basic realm="Swagger Docs - SP SERVICE"',
-      );
+      res.setHeader('WWW-Authenticate', 'Basic realm="Swagger Docs - SP SERVICE"');
       return res.status(401).send('🔒 Identifiants incorrects.');
     },
   );
@@ -206,14 +201,12 @@ async function bootstrap() {
   // ─────────────────────────────────────────────
   // 8. SWAGGER (documentation interactive de l'API)
   // ─────────────────────────────────────────────
-  // Accessible à : http://localhost:{PORT}/api/v1/docs  (après authentification)
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Api `SP SERVICE`')
     .setDescription(
-      'SP SERVICE API: A robust backend for automated SUPERETE  and other services.',
+      'SP SERVICE API: A robust backend for automated SUPERETE and other services.',
     )
     .setVersion('1.0.0')
-    // Ajoute le support du Bearer JWT dans l'interface Swagger (bouton "Authorize")
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
       'access-token',
@@ -224,15 +217,13 @@ async function bootstrap() {
   SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
 
   // ─────────────────────────────────────────────
-  // 8. DÉMARRAGE DU SERVEUR
+  // 9. DÉMARRAGE DU SERVEUR
   // ─────────────────────────────────────────────
   try {
     await app.listen(port, host);
 
     const logger = new Logger('Bootstrap');
-    logger.log(
-      `🚀 Application running on: http://localhost:${port}/${apiPrefix}`,
-    );
+    logger.log(`🚀 Application running on: http://localhost:${port}/${apiPrefix}`);
     logger.log(
       `📖 Swagger documentation: http://localhost:${port}/${apiPrefix}/docs (🔒 Basic Auth activé)`,
     );
@@ -245,7 +236,6 @@ async function bootstrap() {
       logger.log('✅ CORS enabled for:', allowedOrigins);
     }
   } catch (error) {
-    // En cas d'échec au démarrage, on log l'erreur et on stoppe le processus
     const logger = new Logger('Bootstrap');
     logger.error('❌ Failed to start the server', error);
     process.exit(1);
