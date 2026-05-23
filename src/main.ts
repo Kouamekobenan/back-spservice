@@ -54,7 +54,7 @@ async function bootstrap() {
     'https://back-spservice-production.up.railway.app',
     'capacitor-electron://localhost', // ✅ Capacitor Electron (origin réelle)
     'https://localhost',  
-     https://spservices.localhost',            // Electron en mode HTTPS local
+     'https://spservices.localhost',            // Electron en mode HTTPS local
     'app://',                         // ✅ Corrigé (sans le point final)
   ];
 
