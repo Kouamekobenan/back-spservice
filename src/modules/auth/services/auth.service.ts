@@ -8,7 +8,7 @@ export class AuthService {
 
   private readonly saltRounds = 10;
 
-  // 🔒 Hasher le mot de passe utilisateur
+  //  Hasher le mot de passe utilisateur
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, this.saltRounds);
   }
@@ -28,7 +28,6 @@ export class AuthService {
   ): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
   }
-
   // Générer les deux tokens (access + refresh)
   async generateTokens(payload: {
     userId: string;
@@ -43,7 +42,7 @@ export class AuthService {
       },
       {
         secret: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
-        expiresIn: '15m', // durée de vie du access token
+        expiresIn: '1d', // durée de vie du access token
       },
     );
 
@@ -58,11 +57,9 @@ export class AuthService {
         expiresIn: '7d', // durée de vie du refresh token
       },
     );
-
     return { accessToken, refreshToken};
   }
-
-  // ✅ Vérifier la validité d’un refresh token
+  // Vérifier la validité d’un refresh token
   async verifyRefreshToken(token: string): Promise<any> {
     try {
       return this.jwtService.verify(token, {

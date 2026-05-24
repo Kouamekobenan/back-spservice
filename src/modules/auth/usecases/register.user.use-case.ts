@@ -32,9 +32,11 @@ export class RegisterUserUseCase {
     );
 
     let newUser;
+    const generatedName = `ID_${Date.now()}`;
     try {
       newUser = await this.userRepository.createUser({
         ...userDto,
+        username:generatedName,
         passwordHash: hashedPassword,
       });
     } catch (error) {
