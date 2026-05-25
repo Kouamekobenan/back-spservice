@@ -20,5 +20,5 @@ export class CategoryQueryDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  limit?: number = 10;
+  limit?: number = 50;
 }

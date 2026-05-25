@@ -55,7 +55,7 @@ export class ProductRepository implements IProductRepository {
 
   async findAll(query: ProductQueryDto): Promise<PaginatedResponseRepository<Product>> {
     try {
-      const { page = 1, limit = 10, search, shopId, categoryId, isLowStock } = query;
+      const { page = 1, limit = 200, search, shopId, categoryId, isLowStock } = query;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ProductWhereInput = {};

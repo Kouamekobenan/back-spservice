@@ -73,7 +73,7 @@ export class CategoryRepository implements ICategoryRepository {
 
   async findAll(query: CategoryQueryDto): Promise<PaginatedResponseRepository<Category>> {
     try {
-      const { page = 1, limit = 10, name } = query;
+      const { page = 1, limit = 50, name } = query;
       const skip = (page - 1) * limit;
 
       const where: Prisma.CategoryWhereInput = {};
