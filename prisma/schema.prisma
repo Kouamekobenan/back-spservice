@@ -120,6 +120,8 @@ model Shop {
   stockTransfers StockTransfer[]
   auditLogs     AuditLog[]
 
+  categories    Category[]  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -165,7 +167,6 @@ model UserShopAccess {
   id        String   @id @default(uuid())
   userId    String
   shopId    String
-  
   // On peut même surcharger le rôle par boutique ici si besoin
   // Ex: Admin dans le Shop A, mais simple Auditor dans le Shop B
   roleInShop Role?    
@@ -190,6 +191,10 @@ model Category {
   colorHex    String?    // Couleur pour l'interface POS
   iconName    String?    // Nom d'icône (ex: "shopping-cart")
   parentId    String?    // Sous-catégories (auto-relation)
+
+  // Ajouter ceci
+  shopId      String?    // nullable si tu veux des catégories "globales" partagées
+  shop        Shop?      @relation(fields: [shopId], references: [id])
   parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryHierarchy")
   products    Product[]

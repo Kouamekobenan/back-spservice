@@ -9,6 +9,7 @@ import { UpdateCategoryUseCase } from './application/usecases/update-category.us
 import { DeleteCategoryUseCase } from './application/usecases/delete-category.usecase.js';
 import { GetSubcategoriesUseCase } from './application/usecases/get-subcategories.usecase.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { FindCategoryByShopUseCase } from './application/usecases/find-category-by-shop.usecase.js';
 
 @Module({
   controllers: [CategoryController],
@@ -21,6 +22,8 @@ import { PrismaService } from '../../prisma/prisma.service.js';
     UpdateCategoryUseCase,
     DeleteCategoryUseCase,
     GetSubcategoriesUseCase,
+    FindCategoryByShopUseCase,
+    FindCategoryByShopUseCase,
     {
       provide: 'ICategoryRepository',
       useClass: CategoryRepository,

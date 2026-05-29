@@ -19,7 +19,7 @@ export class CreateCategoryDto {
   @IsString({ message: 'Le nom doit être une chaîne de caractères' })
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
   @MaxLength(100, { message: 'Le nom ne peut pas dépasser 100 caractères' })
-  name: string;
+  name!: string;
 
   @ApiProperty({
     example: 'Produits de consommation courante',
@@ -29,12 +29,14 @@ export class CreateCategoryDto {
   })
   @IsOptional()
   @IsString({ message: 'La description doit être une chaîne de caractères' })
-  @MaxLength(255, { message: 'La description ne peut pas dépasser 255 caractères' })
+  @MaxLength(255, {
+    message: 'La description ne peut pas dépasser 255 caractères',
+  })
   description?: string;
 
   @ApiProperty({
     example: '#FF5733',
-    description: 'Couleur hexadécimale pour l\'interface POS',
+    description: "Couleur hexadécimale pour l'interface POS",
     required: false,
     maxLength: 7,
   })
@@ -45,13 +47,13 @@ export class CreateCategoryDto {
 
   @ApiProperty({
     example: 'shopping-cart',
-    description: 'Nom de l\'icône',
+    description: "Nom de l'icône",
     required: false,
     maxLength: 50,
   })
   @IsOptional()
-  @IsString({ message: 'L\'icône doit être une chaîne de caractères' })
-  @MaxLength(50, { message: 'L\'icône ne peut pas dépasser 50 caractères' })
+  @IsString({ message: "L'icône doit être une chaîne de caractères" })
+  @MaxLength(50, { message: "L'icône ne peut pas dépasser 50 caractères" })
   iconName?: string;
 
   @ApiProperty({
@@ -60,6 +62,15 @@ export class CreateCategoryDto {
     required: false,
   })
   @IsOptional()
-  @IsUUID('4', { message: 'L\'ID du parent doit être un UUID valide' })
+  @IsUUID('4', { message: "L'ID du parent doit être un UUID valide" })
   parentId?: string;
+
+  @ApiProperty({
+    example: 'uuid-shop',
+    description: 'ID de la boutique à laquelle la catégorie appartient',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID('4', { message: "L'ID de la boutique doit être un UUID valide" })
+  shopId?: string;
 }

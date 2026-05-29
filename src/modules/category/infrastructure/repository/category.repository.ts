@@ -20,7 +20,6 @@ const caseInsensitive = () =>
     ? {}
     : { mode: 'insensitive' as const };
 
-
 @Injectable()
 export class CategoryRepository implements ICategoryRepository {
   private readonly logger = new Logger(CategoryRepository.name);
@@ -43,7 +42,9 @@ export class CategoryRepository implements ICategoryRepository {
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-          throw new ConflictException('A category with this information already exists.');
+          throw new ConflictException(
+            'A category with this information already exists.',
+          );
         }
         if (error.code === 'P2003') {
           throw new BadRequestException('Invalid reference in provided data.');
@@ -71,7 +72,9 @@ export class CategoryRepository implements ICategoryRepository {
     }
   }
 
-  async findAll(query: CategoryQueryDto): Promise<PaginatedResponseRepository<Category>> {
+  async findAll(
+    query: CategoryQueryDto,
+  ): Promise<PaginatedResponseRepository<Category>> {
     try {
       const { page = 1, limit = 50, name } = query;
       const skip = (page - 1) * limit;
@@ -113,7 +116,10 @@ export class CategoryRepository implements ICategoryRepository {
       });
       return this.mapper.toDomain(category);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new BadRequestException(`Category ${id} does not exist`);
       }
 
@@ -140,7 +146,9 @@ export class CategoryRepository implements ICategoryRepository {
       return categories.map((cat) => this.mapper.toDomain(cat));
     } catch (error) {
       this.logger.error(`Failed to find subcategories for: ${parentId}`);
-      throw new InternalServerErrorException('Error during subcategories search');
+      throw new InternalServerErrorException(
+        'Error during subcategories search',
+      );
     }
   }
 
@@ -153,7 +161,42 @@ export class CategoryRepository implements ICategoryRepository {
       return categories.map((cat) => this.mapper.toDomain(cat));
     } catch (error) {
       this.logger.error('Failed to find root categories');
-      throw new InternalServerErrorException('Error during root categories search');
+      throw new InternalServerErrorException(
+        'Error during root categories search',
+      );
+    }
+  }
+  async findByShopId(
+    shopId: string,
+    query: CategoryQueryDto,
+  ): Promise<PaginatedResponseRepository<Category>> {
+    try {
+      const { page = 1, limit = 50, name } = query;
+      const skip = (page - 1) * limit;
+      const where: Prisma.CategoryWhereInput = { shopId };
+      if (name) {
+        where.name = { contains: name, ...caseInsensitive() };
+      }
+
+      const [categories, total] = await Promise.all([
+        this.prisma.category.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.category.count({ where }),
+      ]);
+      return {
+        data: categories.map((cat) => this.mapper.toDomain(cat)),
+        total,
+        totalPages: Math.ceil(total / limit),
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to paginate categories for shop: ${shopId}`);
+      throw new BadRequestException('Error during pagination');
     }
   }
 }

@@ -6,6 +6,7 @@ export class Category {
     private readonly colorHex: string | null,
     private readonly iconName: string | null,
     private readonly parentId: string | null,
+    private readonly shopId: string | null,
     private readonly createdAt: Date,
     private readonly updatedAt: Date,
   ) {}
@@ -32,6 +33,10 @@ export class Category {
 
   getParentId(): string | null {
     return this.parentId;
+  }
+
+  getShopId(): string | null {
+    return this.shopId;
   }
 
   getCreatedAt(): Date {

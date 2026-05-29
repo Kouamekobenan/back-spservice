@@ -12,12 +12,21 @@ export class CategoryMapper {
       description: data.description,
       colorHex: data.colorHex,
       iconName: data.iconName,
+      shop: data.shopId
+        ? {
+            connect: { id: data.shopId },
+          }
+        : undefined,
     };
-
     if (data.parentId) {
       persistenceData.parent = {
         connect: { id: data.parentId },
       };
+      if(data.shopId) {
+        persistenceData.shop = {
+          connect: { id: data.shopId },
+        };
+      }
     }
 
     return persistenceData;
@@ -31,6 +40,7 @@ export class CategoryMapper {
       categoryData.colorHex,
       categoryData.iconName,
       categoryData.parentId,
+      categoryData.shopId,
       categoryData.createdAt,
       categoryData.updatedAt,
     );
