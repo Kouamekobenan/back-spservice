@@ -60,6 +60,11 @@ export class CategoryMapper {
       } else {
         updateData.parent = { connect: { id: data.parentId } };
       }
+      if(data.shopId !== undefined) {
+        updateData.shop = {
+          connect: { id: data.shopId },
+        };
+      }
     }
 
     return updateData;
