@@ -53,7 +53,7 @@ export class CategoryResponseDto {
     description: 'La date de création de la catégorie',
     example: '2026-03-30T14:22:10.000Z',
   })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({
     description: 'La date de la dernière mise à jour',

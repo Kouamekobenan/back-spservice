@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { ShopType } from '../../domain/enums/shopType-enum.enum';
 
 export class UpdateShopDto {
   @ApiProperty({
@@ -98,4 +99,20 @@ export class UpdateShopDto {
   @IsOptional()
   @IsBoolean({ message: 'Le statut actif doit être un booléen' })
   isActive?: boolean;
+  @ApiProperty({
+    example: ShopType.SUPERMARKET,
+    description: 'Type de la boutique',
+    required: false,
+  })
+  @IsOptional()
+  shopType?: ShopType;
+  @ApiProperty({
+    example: 'Supermarché',
+    description: 'Libellé du type de la boutique',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Le libellé du type de boutique doit être une chaîne de caractères' })
+  @MaxLength(50, { message: 'Le libellé du type de boutique ne peut pas dépasser 50 caractères' })
+  shopTypeLabel?: string;
 }

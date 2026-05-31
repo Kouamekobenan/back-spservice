@@ -54,6 +54,19 @@ enum StockMovementReason {
   INITIAL        // Stock initial lors de la création produit
 }
 
+enum ShopType {
+  SUPERMARKET       // Superette / épicerie
+  HARDWARE          // Quincaillerie
+  PHARMACY          // Pharmacie
+  RESTAURANT        // Restaurant / fast-food
+  GAS_STATION       // Station-service / dépôt de gaz
+  CLOTHING          // Prêt-à-porter / textile
+  ELECTRONICS       // High-tech / électronique
+  BAKERY            // Boulangerie / pâtisserie
+  WHOLESALE         // Commerce de gros
+  OTHER             // Autre
+}
+
 enum ExpenseCategory {
   RENT
   UTILITIES      // Eau, électricité
@@ -108,6 +121,8 @@ model Shop {
   logoUrl     String?
   currency    String   @default("XOF") // Franc CFA
   isActive    Boolean  @default(true)
+  shopType ShopType  @default(SUPERMARKET)  // ← Ajouter ce champ
+  shopTypeLabel String?
 
   // Relations
   // RELATION MISE À JOUR

@@ -3,6 +3,7 @@ import { Shop } from '../entities/shop-entity.entity.js';
 import { CreateShopDto } from '../../application/dtos/create-shop-dto.dto.js';
 import { UpdateShopDto } from '../../application/dtos/update-shop.dto.js';
 import { Prisma, Shop as ShopPrisma } from '@prisma/client';
+import { ShopType } from '../enums/shopType-enum.enum.js';
 
 @Injectable()
 export class ShopMapper {
@@ -15,6 +16,8 @@ export class ShopMapper {
       taxId: data.taxId,
       logoUrl: data.logoUrl,
       currency: data.currency ?? 'XOF',
+      shopType: data.shopType as ShopType.SUPERMARKET,
+      shopTypeLabel: data.shopTypeLabel,
     };
   }
 
@@ -29,6 +32,8 @@ export class ShopMapper {
       shopData.logoUrl,
       shopData.currency,
       shopData.isActive,
+      shopData.shopType,
+      shopData.shopTypeLabel,
       shopData.createdAt,
       shopData.updatedAt,
     );
@@ -45,6 +50,8 @@ export class ShopMapper {
     if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl;
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.shopType !== undefined) updateData.shopType = data.shopType as ShopType;
+    if (data.shopTypeLabel !== undefined) updateData.shopTypeLabel = data.shopTypeLabel;
 
     return updateData;
   }

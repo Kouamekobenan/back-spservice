@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { ShopType } from '../../domain/enums/shopType-enum.enum';
 
 export class CreateShopDto {
   @ApiProperty({
@@ -19,7 +20,7 @@ export class CreateShopDto {
   @IsString({ message: 'Le nom doit être une chaîne de caractères' })
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
   @MaxLength(100, { message: 'Le nom ne peut pas dépasser 100 caractères' })
-  name: string;
+  name!: string;
 
   @ApiProperty({
     example: 'Rue 10, Cocody, Abidjan',
@@ -89,4 +90,14 @@ export class CreateShopDto {
   @IsString({ message: 'La devise doit être une chaîne de caractères' })
   @MaxLength(5, { message: 'La devise ne peut pas dépasser 5 caractères' })
   currency?: string;
+  @ApiProperty({
+    example: ShopType.SUPERMARKET,
+    description: 'Type de la boutique',
+  })
+  shopType!: ShopType;
+  @ApiProperty({
+    example: 'Supermarché',
+    description: 'Libellé du type de la boutique',
+  })
+  shopTypeLabel?: string;
 }

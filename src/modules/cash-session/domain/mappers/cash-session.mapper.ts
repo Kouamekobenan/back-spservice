@@ -1,4 +1,4 @@
-import { CashSession as PrismaCashSession } from '@prisma/client';
+import { Prisma, CashSession as PrismaCashSession } from '@prisma/client';
 import { CashSession } from '../entities/cash-session.entity.js';
 import { OpenCashSessionDto } from '../../application/dtos/open-cash-session.dto.js';
 
@@ -20,12 +20,12 @@ export class CashSessionMapper {
     );
   }
 
-  toPersistence(dto: OpenCashSessionDto): any {
+  toPersistence(dto: OpenCashSessionDto): Prisma.CashSessionCreateInput {
     return {
-      shopId: dto.shopId,
-      userId: dto.userId,
+      shop: { connect: { id: dto.shopId } },
+      user: { connect: { id: dto.userId } },
       openingBalance: dto.openingBalance,
       notes: dto.notes,
     };
   }
-}
+} 
