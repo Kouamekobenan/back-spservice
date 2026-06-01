@@ -653,8 +653,8 @@ model AuditLog {
   action     AuditAction
   entityType String      // "Sale", "Product", "User", etc.
   entityId   String?     // ID de l'entité concernée
-  userId     String
-  user       User        @relation(fields: [userId], references: [id])
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
   shopId     String
   shop       Shop        @relation(fields: [shopId], references: [id])
 

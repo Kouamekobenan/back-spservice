@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AuditAction } from '@prisma/client';
 
 export class AuditLogResponseDto {
@@ -14,8 +14,8 @@ export class AuditLogResponseDto {
   @ApiProperty()
   entityId: string | null;
 
-  @ApiProperty()
-  userId: string;
+  @ApiPropertyOptional()
+  userId: string | null;
 
   @ApiProperty()
   shopId: string;

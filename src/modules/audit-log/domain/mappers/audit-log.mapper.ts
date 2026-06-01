@@ -7,11 +7,12 @@ import { AuditLogResponseDto } from '../../application/dto/audit-log-response.dt
 @Injectable()
 export class AuditLogMapper {
   toPersistence(data: CreateAuditLogDto): Prisma.AuditLogCreateInput {
+    const hasUser = data.userId && data.userId !== 'SYSTEM';
     return {
       action: data.action,
       entityType: data.entityType,
       entityId: data.entityId,
-      user: { connect: { id: data.userId } },
+      ...(hasUser ? { user: { connect: { id: data.userId } } } : {}),
       shop: { connect: { id: data.shopId } },
       dataBefore: data.dataBefore ?? Prisma.JsonNull,
       dataAfter: data.dataAfter ?? Prisma.JsonNull,

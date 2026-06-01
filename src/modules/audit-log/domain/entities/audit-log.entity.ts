@@ -6,7 +6,7 @@ export class AuditLog {
     private readonly action: AuditAction,
     private readonly entityType: string,
     private readonly entityId: string | null,
-    private readonly userId: string,
+    private readonly userId: string | null,
     private readonly shopId: string,
     private readonly dataBefore: any | null,
     private readonly dataAfter: any | null,
@@ -32,7 +32,7 @@ export class AuditLog {
     return this.entityId;
   }
 
-  getUserId(): string {
+  getUserId(): string | null {
     return this.userId;
   }
 

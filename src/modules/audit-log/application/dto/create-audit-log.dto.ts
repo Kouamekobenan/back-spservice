@@ -18,10 +18,10 @@ export class CreateAuditLogDto {
   @IsOptional()
   entityId?: string;
 
-  @ApiProperty({ example: 'uuid-user' })
+  @ApiPropertyOptional({ example: 'uuid-user' })
   @IsUUID()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string;
 
   @ApiProperty({ example: 'uuid-shop' })
   @IsUUID()

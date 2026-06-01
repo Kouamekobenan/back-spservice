@@ -62,6 +62,19 @@ enum StockMovementReason {
   INITIAL
 }
 
+enum ShopType {
+  SUPERMARKET
+  HARDWARE
+  PHARMACY
+  RESTAURANT
+  GAS_STATION
+  CLOTHING
+  ELECTRONICS
+  BAKERY
+  WHOLESALE
+  OTHER
+}
+
 enum ExpenseCategory {
   RENT
   UTILITIES
@@ -110,8 +123,10 @@ model Shop {
   email       String?
   taxId       String?
   logoUrl     String?
-  currency    String   @default("XOF")
-  isActive    Boolean  @default(true)
+  currency      String   @default("XOF")
+  isActive      Boolean  @default(true)
+  shopType      ShopType @default(SUPERMARKET)
+  shopTypeLabel String?
 
   usersAccess    UserShopAccess[]
   products       Product[]
@@ -121,6 +136,7 @@ model Shop {
   purchaseOrders PurchaseOrder[]
   stockTransfers StockTransfer[]
   auditLogs      AuditLog[]
+  categories     Category[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -181,6 +197,8 @@ model Category {
   colorHex    String?
   iconName    String?
   parentId    String?
+  shopId      String?
+  shop        Shop?      @relation(fields: [shopId], references: [id])
   parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryHierarchy")
   products    Product[]
@@ -575,8 +593,8 @@ model AuditLog {
   action     AuditAction
   entityType String
   entityId   String?
-  userId     String
-  user       User        @relation(fields: [userId], references: [id])
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
   shopId     String
   shop       Shop        @relation(fields: [shopId], references: [id])
 
