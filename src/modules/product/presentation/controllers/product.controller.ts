@@ -110,7 +110,6 @@ export class ProductController {
     this.logger.log(`Mise à jour du produit: ${id}`);
     return await this.updateProductUseCase.execute(id, updateProductDto);
   }
-
   @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un produit' })

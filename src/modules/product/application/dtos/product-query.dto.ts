@@ -31,10 +31,10 @@ export class ProductQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiProperty({ required: false, default: 10 })
+  @ApiProperty({ required: false, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  limit?: number = 200;
+  limit?: number = 20;
 }
