@@ -61,32 +61,33 @@ export class Period {
 
   static fromType(periodType: PeriodType): Period {
     const now = new Date();
+    const y = now.getUTCFullYear();
+    const mo = now.getUTCMonth();
+    const d = now.getUTCDate();
+    const dow = now.getUTCDay();
+
     let currentStart: Date;
-    let currentEnd: Date = new Date();
+    const currentEnd: Date = new Date();
 
     switch (periodType) {
       case 'day': {
-        currentStart = new Date(now);
-        currentStart.setHours(0, 0, 0, 0);
+        currentStart = new Date(Date.UTC(y, mo, d, 0, 0, 0, 0));
         break;
       }
       case 'week': {
-        currentStart = new Date(now);
-        const day = now.getDay();
-        currentStart.setDate(now.getDate() - day);
-        currentStart.setHours(0, 0, 0, 0);
+        currentStart = new Date(Date.UTC(y, mo, d - dow, 0, 0, 0, 0));
         break;
       }
       case 'month': {
-        currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        currentStart = new Date(Date.UTC(y, mo, 1, 0, 0, 0, 0));
         break;
       }
       case 'year': {
-        currentStart = new Date(now.getFullYear(), 0, 1);
+        currentStart = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
         break;
       }
       default:
-        currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        currentStart = new Date(Date.UTC(y, mo, 1, 0, 0, 0, 0));
     }
 
     const current = DateRange.create(currentStart, currentEnd);
