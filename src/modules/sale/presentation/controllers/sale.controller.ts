@@ -1,6 +1,8 @@
 import {
   Controller, Post, Body, Get, Param,
   Query, HttpCode, HttpStatus, NotFoundException,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth,
@@ -74,6 +76,7 @@ export class SaleController {
   @ApiParam({ name: 'id', description: 'UUID de la vente' })
   @ApiResponse({ status: 200, description: 'Détails de la vente.', type: SaleResponseDto })
   @ApiResponse({ status: 404, description: 'Vente non trouvée.' })
+   @UsePipes(new ValidationPipe({ transform: true }))
   async findById(@Param('id') id: string): Promise<SaleResponseDto> {
     const sale = await this.findByIdUseCase.execute(id);
     if (!sale) throw new NotFoundException(`Vente ${id} non trouvée`);
