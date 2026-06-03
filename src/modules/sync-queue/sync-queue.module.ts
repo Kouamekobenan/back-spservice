@@ -22,11 +22,13 @@ import { SyncQueueScheduler }  from './presentation/schedulers/sync-queue.schedu
 
 // Prisma
 import { PrismaModule } from '../../prisma/prisma.module.js';
+import { SyncModule } from '../sync/sync.module.js';
 
 @Module({
   imports: [
     PrismaModule,
-    ScheduleModule.forRoot(), // Active le scheduler CRON
+    ScheduleModule.forRoot(),
+    SyncModule,
   ],
   controllers: [SyncQueueController],
   providers: [

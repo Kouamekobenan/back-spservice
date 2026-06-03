@@ -59,6 +59,21 @@ export class AuthService {
     );
     return { accessToken, refreshToken};
   }
+  // Générer un token offline longue durée (30 jours) pour usage hors ligne
+  async generateOfflineToken(payload: {
+    userId: string;
+    phone?: string;
+    role: string;
+  }): Promise<string> {
+    return this.jwtService.sign(
+      { sub: payload.userId, phone: payload.phone, role: payload.role, offline: true },
+      {
+        secret: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
+        expiresIn: "30d",
+      },
+    );
+  }
+
   // Vérifier la validité d’un refresh token
   async verifyRefreshToken(token: string): Promise<any> {
     try {

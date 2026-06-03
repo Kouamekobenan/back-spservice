@@ -15,6 +15,8 @@ import { LogoutUserUseCase } from './usecases/logout-user.usecase';
 import { UpdateUserUseCase } from './users/application/usecases/update-user.usecase';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RefreshTokenUseCase } from './usecases/refresh-token';
+import { GenerateOfflineSessionUseCase } from './usecases/generate-offline-session.use-case';
+import { PinLoginUseCase } from './usecases/pin-login.use-case';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { RefreshTokenUseCase } from './usecases/refresh-token';
     LogoutUserUseCase,
     UpdateUserUseCase,
     RefreshTokenUseCase,
+    GenerateOfflineSessionUseCase,
+    PinLoginUseCase,
     // OtpMapper,
 
     {

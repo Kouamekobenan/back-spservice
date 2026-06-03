@@ -25,6 +25,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module.js';
 import { UserShopAccessModule } from './modules/user-shop-access/user-shop-access.module';
 import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.module.js';
 import { SyncQueueModule } from './modules/sync-queue/sync-queue.module.js';
+import { SyncModule } from './modules/sync/sync.module.js';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { SyncQueueModule } from './modules/sync-queue/sync-queue.module.js';
     UserShopAccessModule,
     SuperAdminModule,
     SyncQueueModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

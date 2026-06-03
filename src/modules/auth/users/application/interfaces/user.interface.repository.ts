@@ -10,6 +10,7 @@ export interface IUserRepository {
   deleteUser(userId: string): Promise<void>;
   getUserById(id: string): Promise<User | null>;
   findByPhone(phone: string): Promise<User | null>;
+  findByUsername(username: string): Promise<User | null>;
   paginate(
     page: number,
     limit: number,

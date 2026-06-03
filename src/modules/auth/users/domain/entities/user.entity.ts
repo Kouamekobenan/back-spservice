@@ -27,27 +27,18 @@ export class User {
     private shopAccesses: UserShopAccess[],
   ) {}
 
-  getId(): string {
-    return this.id;
-  }
-  getRole(): UserRole {
-    return this.role;
-  }
-  getPassword(): string {
-    return this.passwordHash;
-  }
-  getName(): string | null {
-    return this.name;
-  }
-  getPhone(): string | null {
-    return this.phone;
-  }
-  getRefreshToken(): string | null {
-    return this.refreshToken;
-  }
-  getShopAccesses(): UserShopAccess[] {
-    return this.shopAccesses;
-  }
+  getId(): string { return this.id; }
+  getUsername(): string { return this.username; }
+  getRole(): UserRole { return this.role; }
+  getPassword(): string { return this.passwordHash; }
+  getName(): string | null { return this.name; }
+  getPhone(): string | null { return this.phone; }
+  getPin(): string | null { return this.pin; }
+  getIsActive(): boolean { return this.isActive; }
+  getRefreshToken(): string | null { return this.refreshToken; }
+  getLocalId(): string | null { return this.localId; }
+  getCreatedAt(): Date { return this.createdAt; }
+  getShopAccesses(): UserShopAccess[] { return this.shopAccesses; }
 
   hasAccessTo(shopId: string): boolean {
     if (this.role === UserRole.SUPER_ADMIN) return true;

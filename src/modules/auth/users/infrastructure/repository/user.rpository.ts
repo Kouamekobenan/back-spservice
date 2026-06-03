@@ -73,6 +73,23 @@ export class UserRepository implements IUserRepository {
     }
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { username },
+        include: {
+          shopAccesses: {
+            select: { shop: true, shopId: true, roleInShop: true },
+          },
+        },
+      });
+      return user ? this.mapper.toApplication(user) : null;
+    } catch (error) {
+      this.logger.error(`Failed to find user by username: ${username}`);
+      throw new InternalServerErrorException('Erreur lors de la recherche');
+    }
+  }
+
   async getUserById(id: string): Promise<User | null> {
     try {
       const user = await this.prisma.user.findUnique({

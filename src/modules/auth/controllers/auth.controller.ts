@@ -12,8 +12,11 @@ import {
 } from '@nestjs/common';
 import { RegisterUserUseCase } from '../usecases/register.user.use-case';
 import { LoginUserUseCase } from '../usecases/login.use-case';
+import { GenerateOfflineSessionUseCase } from '../usecases/generate-offline-session.use-case';
+import { PinLoginUseCase } from '../usecases/pin-login.use-case';
 import { UserDto } from '../users/application/dtos/user.dto';
 import { LoginDto } from '../users/application/dtos/login-dto.dto';
+import { PinLoginDto } from '../dtos/offline-auth.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -45,6 +48,8 @@ export class AuthController {
     private readonly logoutUserUseCase: LogoutUserUseCase,
     private readonly updateUserUseCase: UpdateUserUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
+    private readonly generateOfflineSessionUseCase: GenerateOfflineSessionUseCase,
+    private readonly pinLoginUseCase: PinLoginUseCase,
   ) {}
 
   // ========================================
@@ -217,6 +222,33 @@ export class AuthController {
     }
     return await this.refreshTokenUseCase.execute(userId, refreshToken);
   }
+  // ── Offline Auth ────────────────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard)
+  @Post('offline-session')
+  @ApiOperation({
+    summary: 'Générer un token offline (30 jours)',
+    description: 'Doit être appelé en ligne. Retourne un token longue durée + snapshot utilisateur à stocker localement.',
+  })
+  @ApiResponse({ status: 201, description: 'Token offline généré' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async generateOfflineSession(@Req() req: any) {
+    return this.generateOfflineSessionUseCase.execute(req.user.userId);
+  }
+
+  @Public()
+  @Post('pin-login')
+  @ApiOperation({
+    summary: 'Connexion par PIN (alternative offline)',
+    description: 'Valide le PIN et retourne un token offline 30 jours.',
+  })
+  @ApiBody({ type: PinLoginDto })
+  @ApiResponse({ status: 201, description: 'Connexion PIN réussie' })
+  @ApiResponse({ status: 401, description: 'PIN incorrect ou compte inactif' })
+  async pinLogin(@Body() dto: PinLoginDto) {
+    return this.pinLoginUseCase.execute(dto.username, dto.pin);
+  }
+
   // 🔒 3. Reset Password (UseCase principal)
   // @Public()
   // @Post('reset-password')

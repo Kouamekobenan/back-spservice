@@ -707,6 +707,27 @@ model SyncQueue {
 // Stockage des paramètres par boutique.
 // ============================================================
 
+// ============================================================
+// SECTION 15 – CHANGELOG SYNC (PULL BIDIRECTIONNEL)
+// Trace toutes les modifications pour permettre au client
+// de récupérer uniquement les changements depuis son dernier sync.
+// ============================================================
+
+model ChangeLog {
+  id         String   @id @default(uuid())
+  entityType String   // "Sale", "Product", "Customer", etc.
+  entityId   String   // ID de l'entité modifiée
+  operation  String   // "CREATE" | "UPDATE" | "DELETE"
+  shopId     String?  // Pour filtrer par boutique (nullable pour entités globales)
+  payload    Json     // État complet de l'entité après la modification
+  changedAt  DateTime @default(now())
+
+  @@index([changedAt])
+  @@index([shopId, changedAt])
+  @@index([entityType, changedAt])
+  @@map("change_log")
+}
+
 model ShopSetting {
   id      String @id @default(uuid())
   shopId  String?

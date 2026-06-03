@@ -1,31 +1,17 @@
-// ================================================================
-// APPLICATION LAYER — UC2 : ProcessSyncQueueUseCase
-// Moteur principal de synchronisation.
-// Récupère les items PENDING par batch et les dispatch selon entityType.
-// Appelle les entités domaine existantes (Sale, Product, etc.)
-// via Prisma pour les appliquer.
-// ================================================================
-
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { ISyncQueueRepository } from '../../domain/interfaces/sync-queue.repository';
-import {
-  SyncQueueItem,
-  SyncOperation,
-} from '../../domain/entities/sync-queue.entity';
+import { SyncQueueItem, SyncOperation } from '../../domain/entities/sync-queue.entity';
 import { ProcessSyncResultDto } from '../dtos/sync-queue.dto';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { validateSyncPayload } from '../payload-validators';
+import { ChangeLogService } from '../../../sync/application/changelog.service';
 
-// ── Dispatcher par type d'entité ──────────────────────────────
+// ── Dispatcher — exécuté à l'intérieur d'une $transaction ────────
 
-/**
- * Dispatch un item de sync vers l'opération Prisma correcte.
- * Applique les règles métier de chaque entité (via le modèle Prisma).
- *
- * Retourne l'ID serveur résultant (pour les CREATE) ou l'ID existant.
- */
 async function dispatchSyncItem(
   item: SyncQueueItem,
-  prisma: PrismaService,
+  tx: Prisma.TransactionClient,
 ): Promise<string> {
   const { entityType, operation, payload, localId } = item;
 
@@ -33,33 +19,24 @@ async function dispatchSyncItem(
     // ── Sale ────────────────────────────────────────────────
     case 'Sale': {
       if (operation === SyncOperation.CREATE) {
-        // Vérifie si la vente existe déjà (idempotence par receiptNumber ou localId)
-        const existing = await prisma.sale.findFirst({
-          where: { localId },
-          select: { id: true },
-        });
+        const existing = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-
-        const created = await prisma.sale.create({
-          data: {
-            ...(payload as any),
-            localId,
-            syncStatus: 'SYNCED',
-          },
+        const created = await tx.sale.create({
+          data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.sale.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`Sale avec localId="${localId}" introuvable pour UPDATE`);
-        await prisma.sale.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`Sale localId="${localId}" introuvable pour UPDATE`);
+        await tx.sale.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       if (operation === SyncOperation.DELETE) {
-        const target = await prisma.sale.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) return localId; // Déjà supprimé = idempotent
-        await prisma.sale.update({ where: { id: target.id }, data: { status: 'VOIDED', syncStatus: 'SYNCED' } });
+        const target = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) return localId;
+        await tx.sale.update({ where: { id: target.id }, data: { status: 'VOIDED', syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -68,24 +45,24 @@ async function dispatchSyncItem(
     // ── Product ─────────────────────────────────────────────
     case 'Product': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.product.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.product.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.product.create({
+        const created = await tx.product.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.product.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`Product avec localId="${localId}" introuvable`);
-        await prisma.product.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.product.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`Product localId="${localId}" introuvable`);
+        await tx.product.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       if (operation === SyncOperation.DELETE) {
-        const target = await prisma.product.findFirst({ where: { localId }, select: { id: true } });
+        const target = await tx.product.findFirst({ where: { localId }, select: { id: true } });
         if (!target) return localId;
-        await prisma.product.update({ where: { id: target.id }, data: { isActive: false, syncStatus: 'SYNCED' } });
+        await tx.product.update({ where: { id: target.id }, data: { isActive: false, syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -94,18 +71,18 @@ async function dispatchSyncItem(
     // ── Customer ─────────────────────────────────────────────
     case 'Customer': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.customer.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.customer.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.customer.create({
+        const created = await tx.customer.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.customer.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`Customer avec localId="${localId}" introuvable`);
-        await prisma.customer.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.customer.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`Customer localId="${localId}" introuvable`);
+        await tx.customer.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -114,18 +91,18 @@ async function dispatchSyncItem(
     // ── Expense ─────────────────────────────────────────────
     case 'Expense': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.expense.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.expense.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.expense.create({
+        const created = await tx.expense.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.expense.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`Expense avec localId="${localId}" introuvable`);
-        await prisma.expense.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.expense.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`Expense localId="${localId}" introuvable`);
+        await tx.expense.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -134,18 +111,18 @@ async function dispatchSyncItem(
     // ── CashSession ──────────────────────────────────────────
     case 'CashSession': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.cashSession.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.cashSession.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.cashSession.create({
+        const created = await tx.cashSession.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.cashSession.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`CashSession avec localId="${localId}" introuvable`);
-        await prisma.cashSession.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.cashSession.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`CashSession localId="${localId}" introuvable`);
+        await tx.cashSession.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -154,9 +131,9 @@ async function dispatchSyncItem(
     // ── StockMovement ────────────────────────────────────────
     case 'StockMovement': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.stockMovement.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.stockMovement.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.stockMovement.create({
+        const created = await tx.stockMovement.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
@@ -168,18 +145,18 @@ async function dispatchSyncItem(
     // ── PurchaseOrder ────────────────────────────────────────
     case 'PurchaseOrder': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.purchaseOrder.create({
+        const created = await tx.purchaseOrder.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await prisma.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
-        if (!target) throw new Error(`PurchaseOrder avec localId="${localId}" introuvable`);
-        await prisma.purchaseOrder.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const target = await tx.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
+        if (!target) throw new Error(`PurchaseOrder localId="${localId}" introuvable`);
+        await tx.purchaseOrder.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
@@ -188,9 +165,9 @@ async function dispatchSyncItem(
     // ── CreditPayment ────────────────────────────────────────
     case 'CreditPayment': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.creditPayment.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.creditPayment.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.creditPayment.create({
+        const created = await tx.creditPayment.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
@@ -202,9 +179,9 @@ async function dispatchSyncItem(
     // ── StockTransfer ────────────────────────────────────────
     case 'StockTransfer': {
       if (operation === SyncOperation.CREATE) {
-        const existing = await prisma.stockTransfer.findFirst({ where: { localId }, select: { id: true } });
+        const existing = await tx.stockTransfer.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
-        const created = await prisma.stockTransfer.create({
+        const created = await tx.stockTransfer.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
         });
@@ -214,13 +191,13 @@ async function dispatchSyncItem(
     }
 
     default:
-      throw new Error(`entityType non supporté par le dispatcher: "${entityType}"`);
+      throw new Error(`entityType non supporté: "${entityType}"`);
   }
 
-  throw new Error(`Opération "${operation}" non supportée pour entityType "${entityType}"`);
+  throw new Error(`Opération "${operation}" non supportée pour "${entityType}"`);
 }
 
-// ── Use Case ─────────────────────────────────────────────────
+// ── Use Case ─────────────────────────────────────────────────────
 
 @Injectable()
 export class ProcessSyncQueueUseCase {
@@ -230,54 +207,50 @@ export class ProcessSyncQueueUseCase {
     @Inject('ISyncQueueRepository')
     private readonly repo: ISyncQueueRepository,
     private readonly prisma: PrismaService,
+    private readonly changeLog: ChangeLogService,
   ) {}
 
-  /**
-   * Traite un batch d'items PENDING.
-   * @param batchSize Nombre max d'items à traiter par appel (défaut: 50)
-   */
   async execute(batchSize = 50): Promise<ProcessSyncResultDto> {
     const startTime = Date.now();
-
-    // 1. Charger le batch PENDING (ordonnés par createdAt = FIFO)
     const pendingItems = await this.repo.findPending(batchSize);
 
     if (pendingItems.length === 0) {
       this.logger.log('Aucun item PENDING à traiter.');
-      return {
-        processed:  0,
-        succeeded:  0,
-        failed:     0,
-        conflicts:  0,
-        durationMs: Date.now() - startTime,
-        syncedIds:  [],
-        errors:     [],
-      };
+      return { processed: 0, succeeded: 0, failed: 0, conflicts: 0, durationMs: 0, syncedIds: [], errors: [] };
     }
 
     this.logger.log(`Traitement de ${pendingItems.length} item(s) PENDING...`);
 
     const syncedIds: string[] = [];
-    const errors:   Array<{ id: string; localId: string; entityType: string; error: string }> = [];
+    const errors: Array<{ id: string; localId: string; entityType: string; error: string }> = [];
     let conflictCount = 0;
 
-    // 2. Traiter chaque item séquentiellement (évite les race conditions)
     for (const item of pendingItems) {
       try {
-        // Dispatcher appelle les entités domaine (Prisma)
-        const resolvedId = await dispatchSyncItem(item, this.prisma);
+        // 1. Validation métier du payload AVANT toute écriture
+        validateSyncPayload(item.entityType, item.operation, item.payload);
 
-        // Marquer comme synchronisé via la logique domaine
+        // 2. Dispatch dans une transaction atomique
+        const resolvedId = await this.prisma.$transaction(async (tx) => {
+          return dispatchSyncItem(item, tx);
+        });
+
         item.markAsSynced(resolvedId);
         await this.repo.save(item);
-
         syncedIds.push(item.id);
         this.logger.debug(`[${item.entityType}] ${item.localId} → ${resolvedId}`);
 
+        // Enregistrer dans le changelog pour que les autres clients puissent puller ce changement
+        this.changeLog.track({
+          entityType: item.entityType,
+          entityId:   resolvedId,
+          operation:  item.operation as 'CREATE' | 'UPDATE' | 'DELETE',
+          shopId:     (item.payload['shopId'] as string | undefined) ?? null,
+          payload:    { ...item.payload, id: resolvedId, syncStatus: 'SYNCED' },
+        });
+
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-
-        // Détection de conflits (doublon de clé unique, contrainte d'intégrité…)
         const isConflict =
           errorMsg.includes('Unique constraint') ||
           errorMsg.includes('duplicate') ||
@@ -292,19 +265,15 @@ export class ProcessSyncQueueUseCase {
           this.logger.error(`❌ ERROR [${item.entityType}] ${item.localId}: ${errorMsg}`);
         }
         await this.repo.save(item);
-        errors.push({
-          id:         item.id,
-          localId:    item.localId,
-          entityType: item.entityType,
-          error:      errorMsg,
-        });
+        errors.push({ id: item.id, localId: item.localId, entityType: item.entityType, error: errorMsg });
       }
     }
+
     const result: ProcessSyncResultDto = {
-      processed:  pendingItems.length,
-      succeeded:  syncedIds.length,
-      failed:     errors.length - conflictCount,
-      conflicts:  conflictCount,
+      processed: pendingItems.length,
+      succeeded: syncedIds.length,
+      failed: errors.length - conflictCount,
+      conflicts: conflictCount,
       durationMs: Date.now() - startTime,
       syncedIds,
       errors,

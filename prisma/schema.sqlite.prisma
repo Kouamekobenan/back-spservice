@@ -640,6 +640,21 @@ model SyncQueue {
 
 // ── CONFIGURATION & PARAMÈTRES ───────────────────────────────
 
+model ChangeLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  operation  String
+  shopId     String?
+  payload    Json
+  changedAt  DateTime @default(now())
+
+  @@index([changedAt])
+  @@index([shopId, changedAt])
+  @@index([entityType, changedAt])
+  @@map("change_log")
+}
+
 model ShopSetting {
   id     String  @id @default(uuid())
   shopId String?
