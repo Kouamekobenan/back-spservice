@@ -2,9 +2,11 @@ import { Injectable, Logger, InternalServerErrorException, BadRequestException }
 import { ISaleRepository } from '../../domain/interfaces/sale.repository.interface.js';
 import { Sale } from '../../domain/entities/sale.entity.js';
 import { CreateSaleDto } from '../../application/dtos/create-sale.dto.js';
+import { FilterSaleDto } from '../../application/dtos/filter-sale.dto.js';
 import { SaleMapper } from '../../domain/mappers/sale.mapper.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
-import { StockMovementReason, PaymentMethod } from '@prisma/client';
+import { StockMovementReason, PaymentMethod, Prisma } from '@prisma/client';
+import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 
 @Injectable()
 export class PrismaSaleRepository implements ISaleRepository {
@@ -148,18 +150,45 @@ export class PrismaSaleRepository implements ISaleRepository {
     return sale ? this.mapper.toDomain(sale) : null;
   }
 
-  async findAll(filters: any): Promise<Sale[]> {
+  async findAll(filters: FilterSaleDto): Promise<PaginatedResponseRepository<Sale>> {
+    const page  = filters.page  ?? 1;
     const limit = filters.limit ?? 30;
-    const page = filters.page ?? 1;
-    const skip = (page - 1) * limit;
+    const skip  = (page - 1) * limit;
 
-    const sales = await this.prisma.sale.findMany({
-      where: { shopId: filters.shopId },
-      include: { items: true, payments: true },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip,
-    });
-    return sales.map(s => this.mapper.toDomain(s));
+    const where: Prisma.SaleWhereInput = {};
+
+    if (filters.shopId)       where.shopId       = filters.shopId;
+    if (filters.status)       where.status        = filters.status;
+    if (filters.userId)       where.userId        = filters.userId;
+    if (filters.customerId)   where.customerId    = filters.customerId;
+    if (filters.cashSessionId) where.cashSessionId = filters.cashSessionId;
+
+    if (filters.search) {
+      where.receiptNumber = { contains: filters.search };
+    }
+
+    if (filters.fromDate || filters.toDate) {
+      where.createdAt = {};
+      if (filters.fromDate) where.createdAt.gte = new Date(filters.fromDate);
+      if (filters.toDate)   where.createdAt.lte = new Date(filters.toDate);
+    }
+
+    const [sales, total] = await Promise.all([
+      this.prisma.sale.findMany({
+        where,
+        include: { items: true, payments: true },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+      this.prisma.sale.count({ where }),
+    ]);
+    return {
+      data:sales.map((s) => this.mapper.toDomain(s)),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      limit,
+    };
   }
 }
