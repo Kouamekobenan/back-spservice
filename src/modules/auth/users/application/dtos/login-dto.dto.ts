@@ -1,23 +1,28 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MinLength, IsPhoneNumber, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, MinLength, IsOptional, ValidateIf } from 'class-validator';
 
 export class LoginDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '+2250701020304',
-    description: "Le numéro de téléphone de l'utilisateur au format international (+225)",
+    description: "Numéro de téléphone (format +225XXXXXXXXXX) — utiliser phone OU username",
   })
-  // 'CI' force la validation pour le format de Côte d'Ivoire
-  @IsPhoneNumber('CI', { message: "Le numéro de téléphone doit être un format valide de Côte d'Ivoire." })
-  @IsNotEmpty({ message: "Le numéro de téléphone est requis." })
-  // Optionnel : Force la présence du signe + et des chiffres pour éviter les erreurs de saisie
-  @Matches(/^\+225[0-9]{10}$/, { 
-    message: "Le numéro doit commencer par +225 suivi des 10 chiffres." 
+  @ValidateIf((o) => !o.username)
+  @IsNotEmpty({ message: "Le téléphone ou le nom d'utilisateur est requis." })
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({
+    example: 'jean.dupont',
+    description: "Nom d'utilisateur — alternative au numéro de téléphone",
   })
-  phone!: string;
+  @ValidateIf((o) => !o.phone)
+  @IsNotEmpty({ message: "Le téléphone ou le nom d'utilisateur est requis." })
+  @IsString()
+  username?: string;
 
   @ApiProperty({
     example: 'password123',
-    description: "Le mot de passe de l'utilisateur",
+    description: "Mot de passe de l'utilisateur",
   })
   @IsString()
   @IsNotEmpty({ message: 'Le mot de passe est requis.' })

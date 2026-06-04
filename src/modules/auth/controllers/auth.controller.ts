@@ -133,11 +133,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Identifiants invalides' })
   @ApiBody({ type: LoginDto })
   async login(@Body() loginDto: LoginDto) {
-    this.logger.log(`Login attempt for phone: ${loginDto.phone}`);
-    return await this.loginUserUseCase.execute(
-      loginDto.phone,
-      loginDto.password,
-    );
+    const identifier = loginDto.phone ?? loginDto.username ?? '';
+    this.logger.log(`Login attempt: ${identifier}`);
+    return await this.loginUserUseCase.execute(identifier, loginDto.password);
   }
   @Post('logout')
   @UseGuards(JwtAuthGuard)

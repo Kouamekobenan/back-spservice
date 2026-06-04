@@ -5,9 +5,9 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { type IUserRepository } from '../users/application/interfaces/user.interface.repository';
-import { User } from '../users/domain/entities/user.entity';
-import { AuthService } from '../services/auth.service';
+import { type IUserRepository } from '../users/application/interfaces/user.interface.repository.js';
+import { User } from '../users/domain/entities/user.entity.js';
+import { AuthService } from '../services/auth.service.js';
 
 @Injectable()
 export class LoginUserUseCase {
@@ -20,7 +20,7 @@ export class LoginUserUseCase {
   ) {}
 
   async execute(
-    phone: string,
+    phoneOrUsername: string,
     password: string,
   ): Promise<{
     user: User;
@@ -29,50 +29,57 @@ export class LoginUserUseCase {
     token: { accessToken: string; refreshToken: string };
     tokens: { accessToken: string; refreshToken: string };
   }> {
-    // 🔍 1️⃣ Vérifie si l'utilisateur existe
-    const user = await this.userRepository.findByPhone(phone);
-    if (!user) {
-      throw new NotFoundException(
-        `Aucun utilisateur trouvé avec ce numéro de telephone ${phone}`,
-      );
+    // Cherche d'abord par téléphone, puis par username en fallback
+    const isPhone = phoneOrUsername.startsWith('+') || /^\d{8,15}$/.test(phoneOrUsername);
+
+    let user: User | null = null;
+
+    if (isPhone) {
+      user = await this.userRepository.findByPhone(phoneOrUsername);
+    } else {
+      user = await this.userRepository.findByUsername(phoneOrUsername);
     }
 
-    //  Vérifie le mot de passe
+    // Si le premier essai échoue, tenter l'autre méthode
+    if (!user && isPhone) {
+      user = await this.userRepository.findByUsername(phoneOrUsername);
+    } else if (!user && !isPhone) {
+      user = await this.userRepository.findByPhone(phoneOrUsername);
+    }
+
+    if (!user) {
+      throw new NotFoundException('Identifiants incorrects');
+    }
+
+    if (!user.getIsActive()) {
+      throw new UnauthorizedException('Compte désactivé');
+    }
+
     const isPasswordValid = await this.authService.comparePassword(
       password,
       user.getPassword() ?? '',
     );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Mot de passe incorrect');
+      throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    // 🪪 3️⃣ Génère les tokens
-    const { accessToken, refreshToken } = await this.authService.generateTokens(
-      {
-        userId: user.getId(),
-        phone: user.getPhone() ?? '',
-        role: user.getRole(),
-      },
-    );
+    const { accessToken, refreshToken } = await this.authService.generateTokens({
+      userId: user.getId(),
+      phone:  user.getPhone() ?? '',
+      role:   user.getRole(),
+    });
 
-    // 🔒 4️⃣ Hashe le refresh token avant de le sauvegarder
     const hashedRt = await this.authService.hashRefreshToken(refreshToken);
-    const users = await this.userRepository.updateRefreshToken(
-      user.getId(),
-      hashedRt,
-    );
-    console.log(`User with resh: ${users.getRefreshToken()}`);
-
-    this.logger.log(
-      `Connexion réussie pour l'utilisateur avec le numéro ${phone}`,
-    );
+    await this.userRepository.updateRefreshToken(user.getId(), hashedRt);
     await this.userRepository.lastConnect(user.getId());
-    //  4️Retourne le résultat
+
+    this.logger.log(`Connexion réussie : ${user.getUsername()} (${user.getRole()})`);
+
     return {
       user,
       accessToken,
       refreshToken,
-      token: { accessToken, refreshToken },
+      token:  { accessToken, refreshToken },
       tokens: { accessToken, refreshToken },
     };
   }
