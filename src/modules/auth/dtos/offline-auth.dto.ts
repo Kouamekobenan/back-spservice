@@ -1,16 +1,21 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 export class PinLoginDto {
-  @ApiProperty({ example: 'jean.dupont', description: "Nom d'utilisateur" })
+  @ApiPropertyOptional({ example: 'jean.dupont', description: "Nom d'utilisateur — alternatif au téléphone" })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  username!: string;
+  username?: string;
+
+  @ApiPropertyOptional({ example: '+2250701020304', description: "Numéro de téléphone — alternatif au username" })
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
   @ApiProperty({ example: '1234', description: 'Code PIN à 4 chiffres' })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[0-9]{4}$/, { message: 'Le PIN doit être composé de 4 chiffres' })
+  // @Matches(/^[0-9]{4}$/, { message: 'Le PIN doit être composé de 4 chiffres' })
   pin!: string;
 }
 

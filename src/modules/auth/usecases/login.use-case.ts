@@ -29,22 +29,36 @@ export class LoginUserUseCase {
     token: { accessToken: string; refreshToken: string };
     tokens: { accessToken: string; refreshToken: string };
   }> {
-    // Cherche d'abord par téléphone, puis par username en fallback
-    const isPhone = phoneOrUsername.startsWith('+') || /^\d{8,15}$/.test(phoneOrUsername);
+    const isPhone = phoneOrUsername.startsWith('+') || /^\d{7,15}$/.test(phoneOrUsername);
 
     let user: User | null = null;
 
     if (isPhone) {
+      // Essai 1 : valeur brute
       user = await this.userRepository.findByPhone(phoneOrUsername);
-    } else {
-      user = await this.userRepository.findByUsername(phoneOrUsername);
-    }
 
-    // Si le premier essai échoue, tenter l'autre méthode
-    if (!user && isPhone) {
+      // Essai 2 : sans le préfixe +225 (ex: "+2250701020304" → "0701020304")
+      if (!user && phoneOrUsername.startsWith('+225')) {
+        user = await this.userRepository.findByPhone(phoneOrUsername.slice(4));
+      }
+
+      // Essai 3 : avec le préfixe +225 (ex: "0701020304" → "+2250701020304")
+      if (!user && !phoneOrUsername.startsWith('+')) {
+        user = await this.userRepository.findByPhone('+225' + phoneOrUsername);
+      }
+
+      // Essai 4 : en dernier recours, chercher par username
+      if (!user) {
+        user = await this.userRepository.findByUsername(phoneOrUsername);
+      }
+    } else {
+      // Cherche par username d'abord
       user = await this.userRepository.findByUsername(phoneOrUsername);
-    } else if (!user && !isPhone) {
-      user = await this.userRepository.findByPhone(phoneOrUsername);
+
+      // Fallback : peut-être un numéro sans indicatif
+      if (!user) {
+        user = await this.userRepository.findByPhone(phoneOrUsername);
+      }
     }
 
     if (!user) {

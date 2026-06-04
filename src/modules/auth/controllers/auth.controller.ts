@@ -244,7 +244,8 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Connexion PIN réussie' })
   @ApiResponse({ status: 401, description: 'PIN incorrect ou compte inactif' })
   async pinLogin(@Body() dto: PinLoginDto) {
-    return this.pinLoginUseCase.execute(dto.username, dto.pin);
+    const identifier = dto.phone ?? dto.username ?? '';
+    return this.pinLoginUseCase.execute(identifier, dto.pin);
   }
 
   // 🔒 3. Reset Password (UseCase principal)
