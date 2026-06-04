@@ -26,6 +26,7 @@ import { UserShopAccessModule } from './modules/user-shop-access/user-shop-acces
 import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.module.js';
 import { SyncQueueModule } from './modules/sync-queue/sync-queue.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
+import { CashierDashboardModule } from './modules/cashier-dashboard/cashier-dashboard.module.js';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { SyncModule } from './modules/sync/sync.module.js';
     SuperAdminModule,
     SyncQueueModule,
     SyncModule,
+    CashierDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

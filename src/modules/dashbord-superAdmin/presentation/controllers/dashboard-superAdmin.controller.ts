@@ -2,10 +2,6 @@ import { Controller, Get, Query, UseGuards, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { GetDashboardOverviewUseCase, GetShopsPerformanceUseCase, GetCategoriesPerformanceUseCase, GetCashiersPerformanceUseCase, GetSalesTimelineUseCase, GetDashboardAlertsUseCase, GetFinancialReportUseCase } from '../../application/usecases/dashboard-usecase.js';
 import { PeriodQueryDto, RankedQueryDto, AlertsQueryDto, OverviewResponseDto, ShopsPerformanceResponseDto, CategoriesPerformanceResponseDto, CashiersPerformanceResponseDto, SalesTimelineResponseDto, AlertsResponseDto, FinancialReportResponseDto } from '../../application/super-Admin.dto.js';
-import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../../../auth/guards/role.guard.js';
-import { Roles } from '../../../auth/decorators/roles.decorators.js';
-
 @ApiTags('dashboard-super-admin')
 @ApiBearerAuth()
 // @UseGuards(JwtAuthGuard, RolesGuard)
