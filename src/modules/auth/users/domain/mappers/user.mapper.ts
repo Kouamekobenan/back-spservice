@@ -12,14 +12,13 @@ export class UserMapper {
   toPersistence(data: UserDto): Prisma.UserCreateInput {
     return {
       id: randomUUID(),
-      username: data.username,
-      passwordHash: data.passwordHash,
-      name: data.name,
+      username: data.username ?? `user_${Date.now()}`,
+      passwordHash: data.passwordHash ?? '',
+      name: data.name ?? '',
       phone: data.phone,
       role: data.role,
       pin: data.pin,
       isActive: data.isActive,
-      // lastLoginAt: data.lastLoginAt,
       localId: data.localId,
     };
   }
