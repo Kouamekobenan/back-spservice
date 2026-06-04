@@ -131,31 +131,31 @@ async function bootstrap() {
    * même si CORS les laisse passer.
    */
   if (process.env.NODE_ENV === 'production') {
-    // PRODUCTION : Helmet complet avec Content Security Policy stricte
     app.use(
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            connectSrc: [
-              "'self'",
-              ...allowedOrigins, // ✅ Synchronisé avec allowedOrigins (plus de désynchronisation)
-            ],
+            connectSrc: ["'self'", ...allowedOrigins],
             scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", 'data:', 'https:'],
+            styleSrc:  ["'self'", "'unsafe-inline'"],
+            imgSrc:    ["'self'", 'data:', 'https:'],
           },
         },
+        // Autorise les navigateurs cross-origin à lire les réponses
+        // (indispensable pour un frontend hébergé sur un domaine différent)
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        crossOriginOpenerPolicy:   false,
         crossOriginEmbedderPolicy: false,
       }),
     );
   } else {
-    // DÉVELOPPEMENT : Helmet minimal pour ne pas interférer avec les DevTools du navigateur
     app.use(
       helmet({
-        contentSecurityPolicy: false,      // Désactivé pour éviter les blocages en dev
-        crossOriginEmbedderPolicy: false,
+        contentSecurityPolicy:     false,
         crossOriginResourcePolicy: false,
+        crossOriginOpenerPolicy:   false,
+        crossOriginEmbedderPolicy: false,
       }),
     );
   }
