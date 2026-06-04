@@ -151,8 +151,8 @@ export class PrismaSaleRepository implements ISaleRepository {
   }
 
   async findAll(filters: FilterSaleDto): Promise<PaginatedResponseRepository<Sale>> {
-    const page  = filters.page  ?? 1;
-    const limit = filters.limit ?? 1000;
+    const page  = Number(filters.page  ?? 1);
+    const limit = Number(filters.limit ?? 30);
     const skip  = (page - 1) * limit;
 
     const where: Prisma.SaleWhereInput = {};

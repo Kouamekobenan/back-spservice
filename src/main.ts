@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/execeptions/http.exception.filter';
 
@@ -164,6 +164,14 @@ async function bootstrap() {
   // 6. FILTRES GLOBAUX
   // ─────────────────────────────────────────────
   app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+      whitelist: true,
+      forbidNonWhitelisted: false,
+    }),
+  );
 
   // ─────────────────────────────────────────────
   // 7. PROTECTION SWAGGER PAR MOT DE PASSE (Basic Auth)
