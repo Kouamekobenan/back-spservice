@@ -1,18 +1,21 @@
 import {
   Controller, Post, Body, Get, Param,
   Query, HttpCode, HttpStatus, NotFoundException,
-  UsePipes,
-  ValidationPipe,
+  UsePipes, ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth,
   ApiQuery, ApiParam, ApiBody,
 } from '@nestjs/swagger';
-import { CreateSaleUseCase }    from '../../application/usecases/create-sale.usecase.js';
-import { FindSaleByIdUseCase }  from '../../application/usecases/find-sale-by-id.usecase.js';
-import { FindAllSalesUseCase }  from '../../application/usecases/find-all-sales.usecase.js';
-import { CreateSaleDto }        from '../../application/dtos/create-sale.dto.js';
-import { FilterSaleDto }        from '../../application/dtos/filter-sale.dto.js';
+import { CreateSaleUseCase }   from '../../application/usecases/create-sale.usecase.js';
+import { FindSaleByIdUseCase } from '../../application/usecases/find-sale-by-id.usecase.js';
+import { FindAllSalesUseCase } from '../../application/usecases/find-all-sales.usecase.js';
+import { VoidSaleUseCase }     from '../../application/usecases/void-sale.usecase.js';
+import { RefundSaleUseCase }   from '../../application/usecases/refund-sale.usecase.js';
+import { CreateSaleDto }       from '../../application/dtos/create-sale.dto.js';
+import { FilterSaleDto }       from '../../application/dtos/filter-sale.dto.js';
+import { VoidSaleDto }         from '../../application/dtos/void-sale.dto.js';
+import { RefundSaleDto }       from '../../application/dtos/refund-sale.dto.js';
 import {
   SaleResponseDto,
   PaginatedSaleResponseDto,
@@ -27,6 +30,8 @@ export class SaleController {
     private readonly createUseCase:   CreateSaleUseCase,
     private readonly findByIdUseCase: FindSaleByIdUseCase,
     private readonly findAllUseCase:  FindAllSalesUseCase,
+    private readonly voidUseCase:     VoidSaleUseCase,
+    private readonly refundUseCase:   RefundSaleUseCase,
   ) {}
 
   // ── POST /sales ───────────────────────────────────────────────
@@ -76,10 +81,60 @@ export class SaleController {
   @ApiParam({ name: 'id', description: 'UUID de la vente' })
   @ApiResponse({ status: 200, description: 'Détails de la vente.', type: SaleResponseDto })
   @ApiResponse({ status: 404, description: 'Vente non trouvée.' })
-   @UsePipes(new ValidationPipe({ transform: true }))
+  @UsePipes(new ValidationPipe({ transform: true }))
   async findById(@Param('id') id: string): Promise<SaleResponseDto> {
     const sale = await this.findByIdUseCase.execute(id);
     if (!sale) throw new NotFoundException(`Vente ${id} non trouvée`);
     return toSaleResponseDto(sale);
+  }
+
+  // ── POST /sales/:id/void ──────────────────────────────────────
+
+  @Post(':id/void')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Annuler une vente (VOID)',
+    description:
+      'Passe le statut de la vente à VOIDED, restitue le stock et réduit la dette client si paiement CREDIT. ' +
+      'Seules les ventes COMPLETED ou PARTIALLY_PAID peuvent être annulées.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la vente à annuler' })
+  @ApiBody({ type: VoidSaleDto })
+  @ApiResponse({ status: 200, description: 'Vente annulée avec succès.', type: SaleResponseDto })
+  @ApiResponse({ status: 400, description: 'Statut incompatible avec l\'annulation.' })
+  @ApiResponse({ status: 404, description: 'Vente non trouvée.' })
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async voidSale(
+    @Param('id') id: string,
+    @Body() dto: VoidSaleDto,
+  ): Promise<SaleResponseDto> {
+    const sale = await this.voidUseCase.execute(id, dto);
+    return toSaleResponseDto(sale);
+  }
+
+  // ── POST /sales/:id/refund ────────────────────────────────────
+
+  @Post(':id/refund')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Rembourser une vente (REFUND)',
+    description:
+      'Crée une nouvelle vente avec statut REFUNDED liée à la vente originale. ' +
+      'Si `items` est absent ou vide, remboursement total. ' +
+      'Si `returnToStock` est true, le stock est restitué. ' +
+      'Seules les ventes COMPLETED ou PARTIALLY_PAID peuvent être remboursées.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la vente originale' })
+  @ApiBody({ type: RefundSaleDto })
+  @ApiResponse({ status: 201, description: 'Remboursement créé avec succès.', type: SaleResponseDto })
+  @ApiResponse({ status: 400, description: 'Données invalides ou quantité dépassée.' })
+  @ApiResponse({ status: 404, description: 'Vente ou article non trouvé.' })
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async refundSale(
+    @Param('id') id: string,
+    @Body() dto: RefundSaleDto,
+  ): Promise<SaleResponseDto> {
+    const refund = await this.refundUseCase.execute(id, dto);
+    return toSaleResponseDto(refund);
   }
 }

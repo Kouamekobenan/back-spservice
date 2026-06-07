@@ -63,6 +63,7 @@ export class Sale {
   getUserId(): string { return this.userId; }
   getCustomerId(): string | null { return this.customerId; }
   getCashSessionId(): string | null { return this.cashSessionId; }
+  getOriginalSaleId(): string | null { return this.originalSaleId; }
   getItems(): SaleItem[] { return this.items; }
   getPayments(): SalePayment[] { return this.payments; }
   getCreatedAt(): Date { return this.createdAt; }

@@ -5,7 +5,7 @@
 // ================================================================
 
 import { Injectable } from '@nestjs/common';
-import { IAlertRepository, ICashierRepository, ICustomerRepository, IExpenseRepository, ISalesRepository, IShopRepository, RawCashierSales, RawCashierSession, RawSalePoint, RawSalesAgg, RawSoldItem } from '../domain/interface/dashboard-superAdmin.repo';
+import { IAlertRepository, ICashierRepository, ICustomerRepository, IExpenseRepository, ISalesRepository, IShopRepository, RawCashierSales, RawCashierSession, RawSalePoint, RawSalesAgg, RawShopSalesBatch, RawSoldItem } from '../domain/interface/dashboard-superAdmin.repo';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Period, ShopFilter } from '../domain/entities/dashbord-superAdmin';
 
@@ -61,6 +61,76 @@ export class PrismaSalesRepository implements ISalesRepository {
     });
 
     return { current: toRaw(current), previous: toRaw(previous) };
+  }
+
+  // ── Batch métriques par boutique (évite N×queries dans GetShopsPerformanceUseCase) ──
+
+  async getShopsMetricsBatch(
+    period: Period,
+    shopIds?: string[],
+  ): Promise<{ current: RawShopSalesBatch[]; previous: RawShopSalesBatch[] }> {
+    const shopWhere = shopIds ? { shopId: { in: shopIds } } : {};
+
+    // 1. Agrégats courant + précédent en parallèle (2 queries groupBy)
+    const [currentAgg, previousAgg] = await Promise.all([
+      this.prisma.sale.groupBy({
+        by: ['shopId'],
+        where: { ...shopWhere, status: { in: ['COMPLETED', 'PARTIALLY_PAID'] }, createdAt: { gte: period.current.from, lte: period.current.to } },
+        _sum: { totalAmount: true, discountAmount: true, taxAmount: true },
+        _count: { id: true },
+      }),
+      this.prisma.sale.groupBy({
+        by: ['shopId'],
+        where: { ...shopWhere, status: { in: ['COMPLETED', 'PARTIALLY_PAID'] }, createdAt: { gte: period.previous.from, lte: period.previous.to } },
+        _sum: { totalAmount: true, discountAmount: true, taxAmount: true },
+        _count: { id: true },
+      }),
+    ]);
+
+    // 2. COGS par boutique — saleItem.findMany minimal (1 query)
+    const saleItems = await this.prisma.saleItem.findMany({
+      where: {
+        sale: {
+          ...shopWhere,
+          status: { in: ['COMPLETED', 'PARTIALLY_PAID'] },
+          createdAt: { gte: period.current.from, lte: period.current.to },
+        },
+      },
+      select: {
+        quantity: true,
+        sale:    { select: { shopId: true } },
+        product: { select: { buyingPrice: true } },
+      },
+    });
+
+    const cogsByShop: Record<string, number> = {};
+    for (const item of saleItems) {
+      const sid = item.sale.shopId;
+      cogsByShop[sid] = (cogsByShop[sid] ?? 0) + Number(item.product.buyingPrice) * Number(item.quantity);
+    }
+
+    const toRow = (row: (typeof currentAgg)[0]): RawShopSalesBatch => ({
+      shopId:           row.shopId,
+      totalAmount:      Number(row._sum.totalAmount ?? 0),
+      discountAmount:   Number(row._sum.discountAmount ?? 0),
+      taxAmount:        Number(row._sum.taxAmount ?? 0),
+      transactionCount: row._count.id,
+      cogs:             cogsByShop[row.shopId] ?? 0,
+    });
+
+    const prevToRow = (row: (typeof previousAgg)[0]): RawShopSalesBatch => ({
+      shopId:           row.shopId,
+      totalAmount:      Number(row._sum.totalAmount ?? 0),
+      discountAmount:   Number(row._sum.discountAmount ?? 0),
+      taxAmount:        Number(row._sum.taxAmount ?? 0),
+      transactionCount: row._count.id,
+      cogs:             0, // COGS précédent non requis pour l'affichage shops
+    });
+
+    return {
+      current:  currentAgg.map(toRow),
+      previous: previousAgg.map(prevToRow),
+    };
   }
 
   async getSoldItemsWithCost(
@@ -362,6 +432,21 @@ export class PrismaExpenseRepository implements IExpenseRepository {
       previous: Number(previous._sum.amount ?? 0),
       byCategory: formattedCategories,
     };
+  }
+
+  async getExpensesByShopBatch(
+    period: Period,
+    shopIds?: string[],
+  ): Promise<Record<string, number>> {
+    const shopWhere = shopIds ? { shopId: { in: shopIds } } : {};
+
+    const rows = await this.prisma.expense.groupBy({
+      by: ['shopId'],
+      where: { ...shopWhere, date: { gte: period.current.from, lte: period.current.to } },
+      _sum: { amount: true },
+    });
+
+    return Object.fromEntries(rows.map((r) => [r.shopId, Number(r._sum.amount ?? 0)]));
   }
 }
 

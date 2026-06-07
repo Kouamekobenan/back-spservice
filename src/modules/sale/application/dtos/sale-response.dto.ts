@@ -35,6 +35,7 @@ export class SaleResponseDto {
   @ApiProperty() userId!: string;
   @ApiPropertyOptional() customerId!: string | null;
   @ApiPropertyOptional() cashSessionId!: string | null;
+  @ApiPropertyOptional() originalSaleId!: string | null;
   @ApiProperty({ type: [SaleItemResponseDto] }) items!: SaleItemResponseDto[];
   @ApiProperty({ type: [SalePaymentResponseDto] }) payments!: SalePaymentResponseDto[];
   @ApiProperty() createdAt!: string;
@@ -64,6 +65,7 @@ export function toSaleResponseDto(sale: Sale): SaleResponseDto {
     userId:         sale.getUserId(),
     customerId:     sale.getCustomerId(),
     cashSessionId:  sale.getCashSessionId(),
+    originalSaleId: sale.getOriginalSaleId(),
     items: sale.getItems().map((item) => ({
       id:          item.id,
       productId:   item.productId,

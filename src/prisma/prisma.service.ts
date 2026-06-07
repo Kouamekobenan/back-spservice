@@ -5,24 +5,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-/**
- * PrismaService — Dual Provider (PostgreSQL cloud + SQLite offline)
- *
- * Bascule automatiquement entre les deux providers selon DATABASE_PROVIDER :
- *   - "sqlite"   → client SQLite (.prisma/client-sqlite) + PRAGMAs
- *   - "postgres" → client PostgreSQL (@prisma/client) [défaut]
- *
- * ⚠️  PATTERN COMPOSITION + PROXY :
- *   Le service ne hérite plus de PrismaClient (breaking change volontaire).
- *   Il expose un Proxy transparent vers le client actif, donc tous les
- *   repositories existants (this.prisma.product.findMany(), etc.) continuent
- *   de fonctionner SANS AUCUNE MODIFICATION.
- *
- *   Exemple : this.prisma.sale.create(...)
- *     → intercepté par le Proxy
- *     → délégué à this.client.sale.create(...)
- */
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
@@ -59,7 +41,6 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       await this.initPostgreSQL();
     }
   }
-
   // ── Initialisation SQLite ─────────────────────────────────
 
   private async initSQLite() {

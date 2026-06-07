@@ -27,6 +27,7 @@ import { SuperAdminModule } from './modules/dashbord-superAdmin/superAdmin.modul
 import { SyncQueueModule } from './modules/sync-queue/sync-queue.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
 import { CashierDashboardModule } from './modules/cashier-dashboard/cashier-dashboard.module.js';
+import { ReportExportModule } from './modules/report-export/report-export.module.js';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { CashierDashboardModule } from './modules/cashier-dashboard/cashier-dash
     SyncQueueModule,
     SyncModule,
     CashierDashboardModule,
+    ReportExportModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

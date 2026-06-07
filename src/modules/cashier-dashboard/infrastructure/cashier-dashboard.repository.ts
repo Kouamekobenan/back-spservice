@@ -14,7 +14,6 @@ const isSQLite = () => process.env.DATABASE_PROVIDER === 'sqlite';
 @Injectable()
 export class CashierDashboardRepository implements ICashierDashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
-
   // ── Agrégats journaliers des ventes ──────────────────────────────
 
   async getDaySales(userId: string, shopId: string, from: Date, to: Date): Promise<RawDaySales> {
@@ -73,7 +72,6 @@ export class CashierDashboardRepository implements ICashierDashboardRepository {
       count:  p._count.id,
     }));
   }
-
   // ── Timeline par heure ────────────────────────────────────────────
 
   async getSalesTimeline(userId: string, shopId: string, from: Date, to: Date): Promise<RawTimelinePoint[]> {

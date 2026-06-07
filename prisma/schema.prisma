@@ -5,8 +5,9 @@
 // ============================================================
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // pooler Neon (runtime)
+  directUrl = env("DIRECT_DATABASE_URL") // direct Neon (migrations)
 }
 
 generator client {
@@ -338,6 +339,7 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([totalDebt])      // rapport créances : WHERE totalDebt > 0
   @@map("customers")
 }
 
@@ -437,9 +439,10 @@ model Sale {
 
   @@index([shopId, createdAt])
   @@index([userId, createdAt])
+  @@index([shopId, status])          // filtres fréquents: status IN [COMPLETED, PARTIALLY_PAID]
+  @@index([customerId])              // recherche des ventes d'un client
   @@map("sales")
 }
-
 model SaleItem {
   id         String   @id @default(uuid())
   saleId     String
@@ -647,6 +650,7 @@ model Expense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([shopId, date])   // rapport financier : filtres par boutique + période
   @@map("expenses")
 }
 

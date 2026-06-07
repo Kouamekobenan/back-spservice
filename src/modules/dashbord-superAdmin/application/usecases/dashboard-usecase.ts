@@ -140,84 +140,83 @@ export class GetShopsPerformanceUseCase {
 
     const limit = query.limit ?? 10;
 
-    // Récupérer toutes les boutiques actives
+    // 1. Boutiques actives + batch métriques (5 queries au lieu de N×7)
     const shops = await this.shopRepo.findAllActive();
+    const shopIds = shops.map((s) => s.id);
 
-    // Métriques par boutique en parallèle
-    const shopMetrics = await Promise.all(
-      shops.map(async (shop) => {
-        const shopFilter = ShopFilter.forShops([shop.id]);
+    const [batchMetrics, expensesByShop, voidRate] = await Promise.all([
+      this.salesRepo.getShopsMetricsBatch(period, shopIds),
+      this.expenseRepo.getExpensesByShopBatch(period, shopIds),
+      this.salesRepo.getTodayVoidRate(),
+    ]);
 
-        const [salesData, soldItems, expensesData, voidRate] =
-          await Promise.all([
-            this.salesRepo.getAggregatedSales(period, shopFilter),
-            this.salesRepo.getSoldItemsWithCost(period, shopFilter),
-            this.expenseRepo.getAggregatedExpenses(period, shopFilter),
-            this.salesRepo.getTodayVoidRate(),
-          ]);
+    // 2. Indexer les résultats par shopId pour accès O(1)
+    const currentMap = new Map(batchMetrics.current.map((r) => [r.shopId, r]));
+    const previousMap = new Map(batchMetrics.previous.map((r) => [r.shopId, r]));
 
-        const revenue = salesData.current.totalAmount;
-        const prevRevenue = salesData.previous.totalAmount;
-        const cogs = soldItems.reduce(
-          (a, i) => a + i.buyingPrice * i.quantity,
-          0,
-        );
-        const expenses = expensesData.total;
-        const grossMargin = revenue - cogs;
+    // 3. Construire les KPIs par boutique (pur calcul en mémoire, zéro query)
+    const shopMetrics = shops.map((shop) => {
+      const curr = currentMap.get(shop.id);
+      const prev = previousMap.get(shop.id);
 
-        const kpi = new ShopKpi(
-          shop.id,
-          shop.name,
-          revenue,
-          prevRevenue,
-          salesData.current.transactionCount,
-          expenses,
-          cogs,
-          salesData.current.discountAmount,
-          voidRate.voided,
-          shop.currency,
-        );
+      const revenue      = curr?.totalAmount ?? 0;
+      const prevRevenue  = prev?.totalAmount ?? 0;
+      const cogs         = curr?.cogs ?? 0;
+      const expenses     = expensesByShop[shop.id] ?? 0;
+      const transactions = curr?.transactionCount ?? 0;
+      const discounts    = curr?.discountAmount ?? 0;
 
-        return {
-          shopId: kpi.shopId,
-          shopName: kpi.shopName,
-          address: shop.address,
-          currency: kpi.currency,
-          revenue: kpi.revenue,
-          previousRevenue: kpi.previousRevenue,
-          evolution: kpi.revenueEvolution,
-          transactions: kpi.transactions,
-          averageBasket: kpi.averageBasket,
-          totalDiscounts: kpi.totalDiscounts,
-          expenses: kpi.expenses,
-          netResult: kpi.netResult,
-          voidRate: kpi.voidRate,
-          rank: 0,
-        };
-      }),
-    );
+      const kpi = new ShopKpi(
+        shop.id,
+        shop.name,
+        revenue,
+        prevRevenue,
+        transactions,
+        expenses,
+        cogs,
+        discounts,
+        voidRate.voided,
+        shop.currency,
+      );
 
-    // Tri par CA décroissant et attribution des rangs
+      return {
+        shopId:          kpi.shopId,
+        shopName:        kpi.shopName,
+        address:         shop.address,
+        currency:        kpi.currency,
+        revenue:         kpi.revenue,
+        previousRevenue: kpi.previousRevenue,
+        evolution:       kpi.revenueEvolution,
+        transactions:    kpi.transactions,
+        averageBasket:   kpi.averageBasket,
+        totalDiscounts:  kpi.totalDiscounts,
+        expenses:        kpi.expenses,
+        netResult:       kpi.netResult,
+        voidRate:        kpi.voidRate,
+        rank:            0,
+      };
+    });
+
+    // 4. Tri + rangs + totaux consolidés
     const sorted = shopMetrics
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit)
       .map((s, i) => ({ ...s, rank: i + 1 }));
 
-    // Totaux consolidés
     const totals = sorted.reduce(
       (acc, s) => ({
-        revenue: acc.revenue + s.revenue,
+        revenue:      acc.revenue + s.revenue,
         transactions: acc.transactions + s.transactions,
-        expenses: acc.expenses + s.expenses,
-        netResult: acc.netResult + s.netResult,
+        expenses:     acc.expenses + s.expenses,
+        netResult:    acc.netResult + s.netResult,
       }),
       { revenue: 0, transactions: 0, expenses: 0, netResult: 0 },
     );
 
     return {
-      period: query.period ?? 'month',
-      dateRange: { from: period.current.from, to: period.current.to },
-      shops: sorted,
+      period:     query.period ?? 'month',
+      dateRange:  { from: period.current.from, to: period.current.to },
+      shops:      sorted,
       totals,
       totalShops: shops.length,
     };

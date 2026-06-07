@@ -51,6 +51,18 @@ export interface RawAlert {
   details: unknown[];
 }
 
+// ── Types batch (utilisés par les use cases multi-boutiques) ──────
+
+/** Métriques de ventes agrégées par boutique — retournées en une seule query */
+export interface RawShopSalesBatch {
+  shopId: string;
+  totalAmount: number;
+  discountAmount: number;
+  taxAmount: number;
+  transactionCount: number;
+  cogs: number; // coût des marchandises vendues
+}
+
 // ── Interfaces des Repositories ───────────────────────────────────
 
 /**
@@ -67,6 +79,18 @@ export interface ISalesRepository {
   ): Promise<{
     current: RawSalesAgg;
     previous: RawSalesAgg;
+  }>;
+
+  /**
+   * Batch : métriques de ventes groupées par boutique (current + previous)
+   * en 3 queries au lieu de N×2. Utilisé par GetShopsPerformanceUseCase.
+   */
+  getShopsMetricsBatch(
+    period: Period,
+    shopIds?: string[],
+  ): Promise<{
+    current: RawShopSalesBatch[];
+    previous: RawShopSalesBatch[];
   }>;
 
   /**
@@ -160,6 +184,15 @@ export interface IExpenseRepository {
     previous: number;
     byCategory: Array<{ category: string; amount: number }>;
   }>;
+
+  /**
+   * Batch : dépenses groupées par boutique (1 query).
+   * Retourne un Map shopId → montant total des dépenses.
+   */
+  getExpensesByShopBatch(
+    period: Period,
+    shopIds?: string[],
+  ): Promise<Record<string, number>>;
 }
 
 /**
