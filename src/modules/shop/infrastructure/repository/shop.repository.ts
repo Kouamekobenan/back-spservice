@@ -119,7 +119,43 @@ export class ShopRepository implements IShopRepository {
 
   async deleteShop(id: string): Promise<void> {
     try {
-      await this.prisma.shop.delete({ where: { id } });
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        // Supprimer dans l'ordre pour respecter toutes les FK (RESTRICT en base)
+
+        // Casser les FK circulaires nullable
+        await tx.sale.updateMany({
+          where: { shopId: id },
+          data: { cashSessionId: null, originalSaleId: null },
+        });
+        await tx.product.updateMany({ where: { shopId: id }, data: { categoryId: null } });
+        await tx.category.updateMany({ where: { shopId: id }, data: { parentId: null } });
+
+        // Enfants avec FK non-nullable vers Product ou Sale
+        await tx.stockMovement.deleteMany({ where: { shopId: id } });
+        await tx.saleItem.deleteMany({ where: { sale: { shopId: id } } });
+        await tx.salePayment.deleteMany({ where: { sale: { shopId: id } } });
+        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { shopId: id } } });
+        await tx.stockTransferItem.deleteMany({
+          where: { transfer: { OR: [{ fromShopId: id }, { toShopId: id }] } },
+        });
+
+        // Tables racines liées à la boutique
+        await tx.sale.deleteMany({ where: { shopId: id } });
+        await tx.purchaseOrder.deleteMany({ where: { shopId: id } });
+        await tx.stockTransfer.deleteMany({
+          where: { OR: [{ fromShopId: id }, { toShopId: id }] },
+        });
+        await tx.product.deleteMany({ where: { shopId: id } });
+        await tx.category.deleteMany({ where: { shopId: id } });
+        await tx.expense.deleteMany({ where: { shopId: id } });
+        await tx.cashSession.deleteMany({ where: { shopId: id } });
+        await tx.auditLog.deleteMany({ where: { shopId: id } });
+        await tx.userShopAccess.deleteMany({ where: { shopId: id } });
+        await tx.shopSetting.deleteMany({ where: { shopId: id } });
+
+        await tx.shop.delete({ where: { id } });
+      }, { timeout: 30000 });
+
       this.logger.log(`Boutique ${id} supprimée avec succès`);
     } catch (error) {
       this.logger.error(`Échec de la suppression de la boutique: ${id}`);

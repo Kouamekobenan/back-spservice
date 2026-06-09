@@ -1,78 +1,534 @@
-// ============================================================
-// PRISMA SCHEMA – ERP/POS MULTI-COMMERCE (OFFLINE-FIRST)
-// Version : 2.0.0  |  Auteur : Ingénierie Logicielle
-// Compatible : PostgreSQL (cloud) + SQLite (local offline)
-// ============================================================
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")       // pooler Neon (runtime)
-  directUrl = env("DIRECT_DATABASE_URL") // direct Neon (migrations)
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// ============================================================
-// SECTION 1 – ENUMS CENTRALISÉS
-// Utiliser des enums garantit l'intégrité des données
-// et évite les fautes de frappe en base.
-// ============================================================
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model Shop {
+  id             String           @id @default(uuid())
+  name           String
+  address        String?
+  phone          String?
+  email          String?
+  taxId          String?
+  logoUrl        String?
+  currency       String           @default("XOF")
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  shopType       ShopType         @default(SUPERMARKET)
+  shopTypeLabel  String?
+  auditLogs      AuditLog[]
+  cashSessions   CashSession[]
+  categories     Category[]
+  expenses       Expense[]
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  sales          Sale[]
+  stockTransfers StockTransfer[]
+  usersAccess    UserShopAccess[]
+
+  @@map("shops")
+}
+
+model User {
+  id             String           @id @default(uuid())
+  username       String           @unique
+  passwordHash   String
+  name           String
+  role           Role             @default(CASHIER)
+  pin            String?
+  isActive       Boolean          @default(true)
+  syncStatus     SyncStatus       @default(SYNCED)
+  localId        String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  refreshToken   String?
+  phone          String?
+  lastLoginAt    DateTime?
+  auditLogs      AuditLog[]
+  cashSessions   CashSession[]
+  sales          Sale[]
+  stockMovements StockMovement[]
+  shopAccesses   UserShopAccess[]
+
+  @@map("users")
+}
+
+model UserShopAccess {
+  id         String   @id @default(uuid())
+  userId     String
+  shopId     String
+  roleInShop Role?
+  assignedAt DateTime @default(now())
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shopId])
+  @@map("user_shop_access")
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  colorHex    String?
+  iconName    String?
+  parentId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  shopId      String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  shop        Shop?      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Unit {
+  id           String    @id @default(uuid())
+  name         String    @unique
+  abbreviation String
+  products     Product[]
+
+  @@map("units")
+}
+
+model Product {
+  id               String              @id @default(uuid())
+  barcode          String?
+  sku              String?
+  name             String
+  description      String?
+  buyingPrice      Decimal             @db.Decimal(12, 2)
+  sellingPrice     Decimal             @db.Decimal(12, 2)
+  wholeSalePrice   Decimal?            @db.Decimal(12, 2)
+  stockQty         Decimal             @default(0) @db.Decimal(12, 3)
+  minStockQty      Decimal             @default(5) @db.Decimal(12, 3)
+  maxStockQty      Decimal?            @db.Decimal(12, 3)
+  hasBatchTracking Boolean             @default(false)
+  metadata         Json?
+  isActive         Boolean             @default(true)
+  shopId           String
+  categoryId       String?
+  unitId           String?
+  syncStatus       SyncStatus          @default(SYNCED)
+  localId          String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  batches          ProductBatch[]
+  usedIn           ProductComponent[]  @relation("ComponentProduct")
+  components       ProductComponent[]  @relation("ComposedProduct")
+  category         Category?           @relation(fields: [categoryId], references: [id])
+  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  unit             Unit?               @relation(fields: [unitId], references: [id])
+  purchaseItems    PurchaseOrderItem[]
+  saleItems        SaleItem[]
+  stockMovements   StockMovement[]
+
+  @@unique([barcode, shopId])
+  @@unique([sku, shopId])
+  @@index([shopId])
+  @@index([shopId, isActive])
+  @@map("products")
+}
+
+model ProductComponent {
+  id          String  @id @default(uuid())
+  composedId  String
+  componentId String
+  quantity    Decimal @db.Decimal(12, 3)
+  component   Product @relation("ComponentProduct", fields: [componentId], references: [id], onDelete: Cascade)
+  composed    Product @relation("ComposedProduct", fields: [composedId], references: [id], onDelete: Cascade)
+
+  @@unique([composedId, componentId])
+  @@map("product_components")
+}
+
+model ProductBatch {
+  id          String    @id @default(uuid())
+  productId   String
+  batchNumber String
+  quantity    Decimal   @db.Decimal(12, 3)
+  expiresAt   DateTime?
+  buyingPrice Decimal   @db.Decimal(12, 2)
+  receivedAt  DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_batches")
+}
+
+model Customer {
+  id             String          @id @default(uuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  totalDebt      Decimal         @default(0) @db.Decimal(12, 2)
+  creditLimit    Decimal?        @db.Decimal(12, 2)
+  notes          String?
+  syncStatus     SyncStatus      @default(SYNCED)
+  localId        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  creditPayments CreditPayment[]
+  sales          Sale[]
+
+  @@index([totalDebt])
+  @@map("customers")
+}
+
+model CreditPayment {
+  id         String        @id @default(uuid())
+  customerId String
+  amount     Decimal       @db.Decimal(12, 2)
+  method     PaymentMethod
+  reference  String?
+  notes      String?
+  syncStatus SyncStatus    @default(SYNCED)
+  localId    String?
+  createdAt  DateTime      @default(now())
+  customer   Customer      @relation(fields: [customerId], references: [id])
+
+  @@map("credit_payments")
+}
+
+model CashSession {
+  id              String     @id @default(uuid())
+  shopId          String
+  userId          String
+  openingBalance  Decimal    @db.Decimal(12, 2)
+  closingBalance  Decimal?   @db.Decimal(12, 2)
+  expectedBalance Decimal?   @db.Decimal(12, 2)
+  difference      Decimal?   @db.Decimal(12, 2)
+  openedAt        DateTime   @default(now())
+  closedAt        DateTime?
+  notes           String?
+  syncStatus      SyncStatus @default(SYNCED)
+  localId         String?
+  shop            Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user            User       @relation(fields: [userId], references: [id])
+  sales           Sale[]
+
+  @@map("cash_sessions")
+}
+
+model Sale {
+  id             String        @id @default(uuid())
+  receiptNumber  String
+  status         SaleStatus    @default(COMPLETED)
+  subtotal       Decimal       @db.Decimal(12, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  totalAmount    Decimal       @db.Decimal(12, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(12, 2)
+  changeAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  notes          String?
+  shopId         String
+  userId         String
+  customerId     String?
+  cashSessionId  String?
+  originalSaleId String?
+  syncStatus     SyncStatus    @default(SYNCED)
+  localId        String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  items          SaleItem[]
+  payments       SalePayment[]
+  cashSession    CashSession?  @relation(fields: [cashSessionId], references: [id])
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  originalSale   Sale?         @relation("SaleRefunds", fields: [originalSaleId], references: [id])
+  refunds        Sale[]        @relation("SaleRefunds")
+  shop           Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@index([shopId, createdAt])
+  @@index([userId, createdAt])
+  @@index([shopId, status])
+  @@index([customerId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String  @id @default(uuid())
+  saleId      String
+  productId   String
+  productName String
+  productSku  String?
+  quantity    Decimal @db.Decimal(12, 3)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  totalPrice  Decimal @db.Decimal(12, 2)
+  product     Product @relation(fields: [productId], references: [id])
+  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_items")
+}
+
+model SalePayment {
+  id        String        @id @default(uuid())
+  saleId    String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(12, 2)
+  reference String?
+  createdAt DateTime      @default(now())
+  sale      Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("sale_payments")
+}
+
+model Supplier {
+  id             String          @id @default(uuid())
+  name           String
+  contact        String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  localId        String?
+  syncStatus     SyncStatus      @default(SYNCED)
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  orderNumber String
+  status      PurchaseOrderStatus @default(DRAFT)
+  supplierId  String
+  shopId      String
+  subtotal    Decimal             @db.Decimal(12, 2)
+  totalAmount Decimal             @db.Decimal(12, 2)
+  amountPaid  Decimal             @default(0) @db.Decimal(12, 2)
+  expectedAt  DateTime?
+  receivedAt  DateTime?
+  notes       String?
+  syncStatus  SyncStatus          @default(SYNCED)
+  localId     String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  items       PurchaseOrderItem[]
+  shop        Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(uuid())
+  purchaseOrderId  String
+  productId        String
+  quantityOrdered  Decimal       @db.Decimal(12, 3)
+  quantityReceived Decimal       @default(0) @db.Decimal(12, 3)
+  unitCost         Decimal       @db.Decimal(12, 2)
+  totalCost        Decimal       @db.Decimal(12, 2)
+  product          Product       @relation(fields: [productId], references: [id])
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_order_items")
+}
+
+model StockMovement {
+  id              String              @id @default(uuid())
+  productId       String
+  shopId          String
+  reason          StockMovementReason
+  quantity        Decimal             @db.Decimal(12, 3)
+  stockBefore     Decimal             @db.Decimal(12, 3)
+  stockAfter      Decimal             @db.Decimal(12, 3)
+  unitCost        Decimal?            @db.Decimal(12, 2)
+  saleId          String?
+  purchaseOrderId String?
+  transferId      String?
+  notes           String?
+  userId          String
+  syncStatus      SyncStatus          @default(SYNCED)
+  localId         String?
+  createdAt       DateTime            @default(now())
+  product         Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([shopId, createdAt])
+  @@map("stock_movements")
+}
+
+model StockTransfer {
+  id             String              @id @default(uuid())
+  transferNumber String
+  fromShopId     String
+  toShopId       String
+  status         String              @default("PENDING")
+  notes          String?
+  syncStatus     SyncStatus          @default(SYNCED)
+  localId        String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  items          StockTransferItem[]
+  fromShop       Shop                @relation(fields: [fromShopId], references: [id], onDelete: Cascade)
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id         String        @id @default(uuid())
+  transferId String
+  productId  String
+  quantity   Decimal       @db.Decimal(12, 3)
+  unitCost   Decimal       @db.Decimal(12, 2)
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@map("stock_transfer_items")
+}
+
+model Expense {
+  id           String          @id @default(uuid())
+  title        String
+  category     ExpenseCategory
+  amount       Decimal         @db.Decimal(12, 2)
+  date         DateTime        @default(now())
+  description  String?
+  receiptUrl   String?
+  isRecurring  Boolean         @default(false)
+  recurringDay Int?
+  shopId       String
+  syncStatus   SyncStatus      @default(SYNCED)
+  localId      String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  shop         Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, date])
+  @@map("expenses")
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  action     AuditAction
+  entityType String
+  entityId   String?
+  userId     String?
+  shopId     String
+  dataBefore Json?
+  dataAfter  Json?
+  ipAddress  String?
+  userAgent  String?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  shop       Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model SyncQueue {
+  id         String     @id @default(uuid())
+  entityType String
+  localId    String
+  payload    Json
+  operation  String
+  retryCount Int        @default(0)
+  lastError  String?
+  syncStatus SyncStatus @default(PENDING)
+  resolvedId String?
+  createdAt  DateTime   @default(now())
+  syncedAt   DateTime?
+
+  @@index([syncStatus, createdAt])
+  @@map("sync_queue")
+}
+
+model ChangeLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  operation  String
+  shopId     String?
+  payload    Json
+  changedAt  DateTime @default(now())
+
+  @@index([changedAt])
+  @@index([shopId, changedAt])
+  @@index([entityType, changedAt])
+  @@map("change_log")
+}
+
+model ShopSetting {
+  id     String  @id @default(uuid())
+  shopId String?
+  key    String
+  value  String
+  group  String  @default("general")
+
+  @@unique([shopId, key])
+  @@map("shop_settings")
+}
 
 enum Role {
-  SUPER_ADMIN   // Accès total à toutes les boutiques
-  ADMIN         // Accès total à sa boutique
-  MANAGER       // Gestion stocks, rapports, mais pas paramètres
-  CASHIER       // Caisse uniquement
-  AUDITOR       // Lecture seule, audit
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  CASHIER
+  AUDITOR
 }
 
 enum PaymentMethod {
   CASH
   MOBILE_MONEY
   BANK_CARD
-  CREDIT         // Vente à crédit
-  MIXED          // Paiement partiel cash + mobile money, etc.
+  CREDIT
+  MIXED
 }
 
 enum SaleStatus {
   COMPLETED
-  PARTIALLY_PAID // Cas crédit avec acompte
-  VOIDED         // Annulée
-  REFUNDED       // Remboursée
+  PARTIALLY_PAID
+  VOIDED
+  REFUNDED
 }
 
 enum StockMovementReason {
   SALE
-  PURCHASE       // Réception fournisseur
-  RETURN_IN      // Retour client (rentre en stock)
-  RETURN_OUT     // Retour fournisseur (sort du stock)
-  ADJUSTMENT     // Inventaire physique
-  LOSS           // Perte / casse
-  TRANSFER_IN    // Transfert reçu d'une autre boutique
-  TRANSFER_OUT   // Transfert envoyé vers une autre boutique
-  INITIAL        // Stock initial lors de la création produit
+  PURCHASE
+  RETURN_IN
+  RETURN_OUT
+  ADJUSTMENT
+  LOSS
+  TRANSFER_IN
+  TRANSFER_OUT
+  INITIAL
 }
 
 enum ShopType {
-  SUPERMARKET       // Superette / épicerie
-  HARDWARE          // Quincaillerie
-  PHARMACY          // Pharmacie
-  RESTAURANT        // Restaurant / fast-food
-  GAS_STATION       // Station-service / dépôt de gaz
-  CLOTHING          // Prêt-à-porter / textile
-  ELECTRONICS       // High-tech / électronique
-  BAKERY            // Boulangerie / pâtisserie
-  WHOLESALE         // Commerce de gros
-  OTHER             // Autre
+  SUPERMARKET
+  HARDWARE
+  PHARMACY
+  RESTAURANT
+  GAS_STATION
+  CLOTHING
+  ELECTRONICS
+  BAKERY
+  WHOLESALE
+  OTHER
 }
 
 enum ExpenseCategory {
   RENT
-  UTILITIES      // Eau, électricité
+  UTILITIES
   SALARY
-  SUPPLIES       // Fournitures bureau
+  SUPPLIES
   TRANSPORT
   MAINTENANCE
   TAXES
@@ -101,644 +557,8 @@ enum AuditAction {
 }
 
 enum SyncStatus {
-  PENDING    // Créé hors ligne, en attente de sync
-  SYNCED     // Synchronisé avec le cloud
-  CONFLICT   // Conflit détecté lors de la sync
-  ERROR      // Erreur de synchronisation
-}
-
-// ============================================================
-// SECTION 2 – MULTI-BOUTIQUES
-// Toutes les entités métier sont rattachées à un Shop.
-// ============================================================
-
-model Shop {
-  id          String   @id @default(uuid())
-  name        String
-  address     String?
-  phone       String?
-  email       String?
-  taxId       String?  // Numéro contribuable / RCCM
-  logoUrl     String?
-  currency    String   @default("XOF") // Franc CFA
-  isActive    Boolean  @default(true)
-  shopType ShopType  @default(SUPERMARKET)  // ← Ajouter ce champ
-  shopTypeLabel String?
-
-  // Relations
-  // RELATION MISE À JOUR
-  usersAccess UserShopAccess[]
-  products      Product[]
-  sales         Sale[]
-  expenses      Expense[]
-  cashSessions  CashSession[]
-  purchaseOrders PurchaseOrder[]
-  stockTransfers StockTransfer[]
-  auditLogs     AuditLog[]
-
-  categories    Category[]  
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("shops")
-}
-
-// ============================================================
-// SECTION 3 – UTILISATEURS & PERMISSIONS
-// ============================================================
-
-model User {
-  id           String    @id  @default(uuid())
-  username     String    @unique
-  passwordHash String
-  refreshToken String?
-  name         String
-  phone        String?
-  role         Role      @default(CASHIER)
-  pin          String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  
-  // NOUVELLE RELATION : Un utilisateur peut avoir accès à plusieurs boutiques
-  shopAccesses UserShopAccess[]
-
-  // Les autres relations restent, mais attention : 
-  // une vente ou une session de caisse doit toujours être liée à UN shop précis.
-  sales          Sale[]
-  cashSessions   CashSession[]
-  auditLogs      AuditLog[]
-  stockMovements StockMovement[]
-
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
-}
-
-model UserShopAccess {
-  id        String   @id @default(uuid())
-  userId    String
-  shopId    String
-  // On peut même surcharger le rôle par boutique ici si besoin
-  // Ex: Admin dans le Shop A, mais simple Auditor dans le Shop B
-  roleInShop Role?    
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  assignedAt DateTime @default(now())
-
-  @@unique([userId, shopId]) // Un utilisateur ne peut pas avoir deux accès identiques au même shop
-  @@map("user_shop_access")
-}
-
-// ============================================================
-// SECTION 4 – CATALOGUE PRODUITS
-// ============================================================
-
-model Category {
-  id          String     @id @default(uuid())
-  name        String     // Ex: "Alimentation", "Quincaillerie", "Gaz"
-  description String?
-  colorHex    String?    // Couleur pour l'interface POS
-  iconName    String?    // Nom d'icône (ex: "shopping-cart")
-  parentId    String?    // Sous-catégories (auto-relation)
-
-  // Ajouter ceci
-  shopId      String?    // nullable si tu veux des catégories "globales" partagées
-  shop        Shop?      @relation(fields: [shopId], references: [id])
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryHierarchy")
-  products    Product[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("categories")
-}
-
-model Unit {
-  id           String    @id @default(uuid())
-  name         String    @unique // Ex: "Pièce", "Carton", "Kg", "Litre", "Bouteille"
-  abbreviation String    // Ex: "pcs", "ctn", "kg", "L", "btl"
-  products     Product[]
-
-  @@map("units")
-}
-
-model Product {
-  id           String   @id @default(uuid())
-  barcode      String?
-  sku          String?  // Code interne (Stock Keeping Unit)
-  name         String
-  description  String?
-
-  // Prix
-  buyingPrice  Decimal  @db.Decimal(12, 2) // Prix d'achat (Decimal pour éviter les arrondis)
-  sellingPrice Decimal  @db.Decimal(12, 2) // Prix de vente public
-  wholeSalePrice Decimal? @db.Decimal(12, 2) // Prix de gros (facultatif)
-
-  // Stock
-  stockQty     Decimal  @default(0) @db.Decimal(12, 3)
-  minStockQty  Decimal  @default(5) @db.Decimal(12, 3)  // Seuil d'alerte
-  maxStockQty  Decimal? @db.Decimal(12, 3)               // Seuil de surstock
-
-  // Gestion par lots (DLC, numéro lot)
-  hasBatchTracking Boolean @default(false)
-
-  // Champ flexible pour métadonnées sectorielles
-  // Ex: { "gasWeight": 12, "gasType": "butane" } pour les bouteilles de gaz
-  metadata     Json?
-
-  isActive     Boolean  @default(true)
-
-  shopId       String
-  shop         Shop     @relation(fields: [shopId], references: [id])
-
-  categoryId   String?
-  category     Category? @relation(fields: [categoryId], references: [id])
-
-  unitId       String?
-  unit         Unit?    @relation(fields: [unitId], references: [id])
-
-  // Pour les produits composés (kits)
-  components   ProductComponent[] @relation("ComposedProduct")
-  usedIn       ProductComponent[] @relation("ComponentProduct")
-
-  saleItems      SaleItem[]
-  stockMovements StockMovement[]
-  purchaseItems  PurchaseOrderItem[]
-  batches        ProductBatch[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([barcode, shopId])
-  @@unique([sku, shopId])
-  @@index([shopId])
-  @@index([shopId, isActive])
-  @@map("products")
-}
-
-// Produits composés : un "Kit" contient plusieurs produits
-model ProductComponent {
-  id          String  @id @default(uuid())
-  composedId  String
-  composed    Product @relation("ComposedProduct", fields: [composedId], references: [id])
-  componentId String
-  component   Product @relation("ComponentProduct", fields: [componentId], references: [id])
-  quantity    Decimal @db.Decimal(12, 3)
-
-  @@unique([composedId, componentId])
-  @@map("product_components")
-}
-
-// Gestion des lots (numéro de lot, DLC)
-model ProductBatch {
-  id            String    @id @default(uuid())
-  productId     String
-  product       Product   @relation(fields: [productId], references: [id])
-  batchNumber   String
-  quantity      Decimal   @db.Decimal(12, 3)
-  expiresAt     DateTime?
-  buyingPrice   Decimal   @db.Decimal(12, 2)
-  receivedAt    DateTime  @default(now())
-
-  @@map("product_batches")
-}
-
-// ============================================================
-// SECTION 5 – CLIENTS & CRÉDIT
-// ============================================================
-
-model Customer {
-  id          String   @id @default(uuid())
-  name        String
-  phone       String?
-  email       String?
-  address     String?
-  totalDebt   Decimal  @default(0) @db.Decimal(12, 2)
-  creditLimit Decimal? @db.Decimal(12, 2) // Plafond de crédit autorisé
-  notes       String?
-
-  sales           Sale[]
-  creditPayments  CreditPayment[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([totalDebt])      // rapport créances : WHERE totalDebt > 0
-  @@map("customers")
-}
-
-model CreditPayment {
-  id         String        @id @default(uuid())
-  customerId String
-  customer   Customer      @relation(fields: [customerId], references: [id])
-  amount     Decimal       @db.Decimal(12, 2)
-  method     PaymentMethod
-  reference  String?       // Référence mobile money
-  notes      String?
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt  DateTime @default(now())
-
-  @@map("credit_payments")
-}
-
-// ============================================================
-// SECTION 6 – SESSIONS DE CAISSE
-// Gestion de l'ouverture et fermeture de caisse quotidienne.
-// ============================================================
-
-model CashSession {
-  id             String    @id @default(uuid())
-  shopId         String
-  shop           Shop      @relation(fields: [shopId], references: [id])
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
-
-  openingBalance Decimal   @db.Decimal(12, 2) // Fond de caisse initial
-  closingBalance Decimal?  @db.Decimal(12, 2) // Fond de caisse à la clôture
-  expectedBalance Decimal? @db.Decimal(12, 2) // Calculé par le système
-  difference     Decimal?  @db.Decimal(12, 2) // Écart (closingBalance - expectedBalance)
-
-  openedAt  DateTime  @default(now())
-  closedAt  DateTime?
-  notes     String?
-
-  sales Sale[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  @@map("cash_sessions")
-}
-
-// ============================================================
-// SECTION 7 – VENTES & ENCAISSEMENTS
-// ============================================================
-
-model Sale {
-  id             String        @id @default(uuid())
-  receiptNumber  String        // Numéro de reçu lisible (ex: "VTE-20260506-0042")
-  status         SaleStatus    @default(COMPLETED)
-
-  // Montants (tous en Decimal pour précision financière)
-  subtotal       Decimal       @db.Decimal(12, 2) // Avant remise et taxe
-  discountAmount Decimal       @default(0) @db.Decimal(12, 2)
-  taxAmount      Decimal       @default(0) @db.Decimal(12, 2)
-  totalAmount    Decimal       @db.Decimal(12, 2) // Montant final à payer
-  paidAmount     Decimal       @default(0) @db.Decimal(12, 2)
-  changeAmount   Decimal       @default(0) @db.Decimal(12, 2) // Monnaie rendue
-
-  notes          String?
-
-  shopId         String
-  shop           Shop          @relation(fields: [shopId], references: [id])
-
-  userId         String
-  user           User          @relation(fields: [userId], references: [id])
-
-  customerId     String?
-  customer       Customer?     @relation(fields: [customerId], references: [id])
-
-  cashSessionId  String?
-  cashSession    CashSession?  @relation(fields: [cashSessionId], references: [id])
-
-  // Vente originale si c'est un remboursement
-  originalSaleId String?
-  originalSale   Sale?         @relation("SaleRefunds", fields: [originalSaleId], references: [id])
-  refunds        Sale[]        @relation("SaleRefunds")
-
-  items          SaleItem[]
-  payments       SalePayment[] // Paiements mixtes possibles
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([shopId, createdAt])
-  @@index([userId, createdAt])
-  @@index([shopId, status])          // filtres fréquents: status IN [COMPLETED, PARTIALLY_PAID]
-  @@index([customerId])              // recherche des ventes d'un client
-  @@map("sales")
-}
-model SaleItem {
-  id         String   @id @default(uuid())
-  saleId     String
-  sale       Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-
-  // Snapshot du produit au moment de la vente (immuable)
-  productName  String
-  productSku   String?
-  quantity     Decimal  @db.Decimal(12, 3)
-  unitPrice    Decimal  @db.Decimal(12, 2) // Prix unitaire appliqué
-  discount     Decimal  @default(0) @db.Decimal(12, 2) // Remise sur ligne
-  totalPrice   Decimal  @db.Decimal(12, 2) // (unitPrice - discount) * quantity
-
-  @@index([saleId])
-  @@map("sale_items")
-}
-
-// Gestion des paiements mixtes (ex: 5000 FCFA cash + 3000 Orange Money)
-model SalePayment {
-  id        String        @id @default(uuid())
-  saleId    String
-  sale      Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  method    PaymentMethod
-  amount    Decimal       @db.Decimal(12, 2)
-  reference String?       // Référence mobile money / transaction
-
-  createdAt DateTime @default(now())
-
-  @@map("sale_payments")
-}
-
-// ============================================================
-// SECTION 8 – FOURNISSEURS & APPROVISIONNEMENTS
-// ============================================================
-
-model Supplier {
-  id          String   @id @default(uuid())
-  name        String
-  contact     String?
-  phone       String?
-  email       String?
-  address     String?
-  notes       String?
-  isActive    Boolean  @default(true)
-
-  purchaseOrders PurchaseOrder[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("suppliers")
-}
-
-model PurchaseOrder {
-  id              String              @id @default(uuid())
-  orderNumber     String              // Ex: "CMD-20260506-0015"
-  status          PurchaseOrderStatus @default(DRAFT)
-
-  supplierId      String
-  supplier        Supplier            @relation(fields: [supplierId], references: [id])
-
-  shopId          String
-  shop            Shop                @relation(fields: [shopId], references: [id])
-
-  subtotal        Decimal             @db.Decimal(12, 2)
-  totalAmount     Decimal             @db.Decimal(12, 2)
-  amountPaid      Decimal             @default(0) @db.Decimal(12, 2)
-
-  expectedAt      DateTime?           // Date de livraison prévue
-  receivedAt      DateTime?           // Date de réception effective
-  notes           String?
-
-  items           PurchaseOrderItem[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("purchase_orders")
-}
-
-model PurchaseOrderItem {
-  id              String        @id @default(uuid())
-  purchaseOrderId String
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product       @relation(fields: [productId], references: [id])
-
-  quantityOrdered  Decimal @db.Decimal(12, 3)
-  quantityReceived Decimal @default(0) @db.Decimal(12, 3)
-  unitCost         Decimal @db.Decimal(12, 2)
-  totalCost        Decimal @db.Decimal(12, 2)
-
-  @@map("purchase_order_items")
-}
-
-// ============================================================
-// SECTION 9 – MOUVEMENTS DE STOCK (AUDIT TRAIL STOCK)
-// Table unique pour tous les mouvements, liée aux opérations.
-// ============================================================
-
-model StockMovement {
-  id          String              @id @default(uuid())
-  productId   String
-  product     Product             @relation(fields: [productId], references: [id])
-  shopId      String
-
-  reason      StockMovementReason
-  quantity    Decimal             @db.Decimal(12, 3) // + si entrée, - si sortie
-  stockBefore Decimal             @db.Decimal(12, 3) // Stock avant le mouvement
-  stockAfter  Decimal             @db.Decimal(12, 3) // Stock après le mouvement
-  unitCost    Decimal?            @db.Decimal(12, 2) // Coût unitaire (pour approvisionnements)
-
-  // Traçabilité de l'opération source
-  saleId          String?         // Si lié à une vente
-  purchaseOrderId String?         // Si lié à un bon de commande
-  transferId      String?         // Si lié à un transfert inter-boutiques
-  notes           String?
-
-  userId      String
-  user        User   @relation(fields: [userId], references: [id])
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt   DateTime @default(now())
-
-  @@index([productId, createdAt])
-  @@index([shopId, createdAt])
-  @@map("stock_movements")
-}
-
-// ============================================================
-// SECTION 10 – TRANSFERTS INTER-BOUTIQUES
-// ============================================================
-
-model StockTransfer {
-  id             String   @id @default(uuid())
-  transferNumber String   // Ex: "TRF-20260506-0003"
-
-  fromShopId     String
-  fromShop       Shop     @relation(fields: [fromShopId], references: [id])
-
-  toShopId       String   // Boutique destinataire (relation directe en SQL)
-
-  status         String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
-  notes          String?
-
-  items          StockTransferItem[]
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("stock_transfers")
-}
-
-model StockTransferItem {
-  id         String        @id @default(uuid())
-  transferId String
-  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  productId  String
-
-  quantity   Decimal       @db.Decimal(12, 3)
-  unitCost   Decimal       @db.Decimal(12, 2)
-
-  @@map("stock_transfer_items")
-}
-
-// ============================================================
-// SECTION 11 – DÉPENSES OPÉRATIONNELLES
-// ============================================================
-
-model Expense {
-  id          String          @id @default(uuid())
-  title       String
-  category    ExpenseCategory
-  amount      Decimal         @db.Decimal(12, 2)
-  date        DateTime        @default(now())
-  description String?
-  receiptUrl  String?         // Photo du justificatif (URL cloud)
-  isRecurring Boolean         @default(false)
-  recurringDay Int?           // Jour du mois (si récurrent)
-
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id])
-
-  // Sync Offline
-  syncStatus SyncStatus @default(SYNCED)
-  localId    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([shopId, date])   // rapport financier : filtres par boutique + période
-  @@map("expenses")
-}
-
-// ============================================================
-// SECTION 12 – AUDIT TRAIL GÉNÉRAL
-// Traçabilité de toutes les actions sensibles du système.
-// ============================================================
-
-model AuditLog {
-  id         String      @id @default(uuid())
-  action     AuditAction
-  entityType String      // "Sale", "Product", "User", etc.
-  entityId   String?     // ID de l'entité concernée
-  userId     String?
-  user       User?       @relation(fields: [userId], references: [id])
-  shopId     String
-  shop       Shop        @relation(fields: [shopId], references: [id])
-
-  // Snapshot des données avant/après modification
-  dataBefore Json?       // État avant l'action
-  dataAfter  Json?       // État après l'action
-  ipAddress  String?
-  userAgent  String?
-  notes      String?
-
-  createdAt  DateTime @default(now())
-
-  @@index([entityType, entityId])
-  @@index([userId, createdAt])
-  @@map("audit_logs")
-}
-
-// ============================================================
-// SECTION 13 – SYNCHRONISATION OFFLINE
-// File d'attente pour les opérations créées hors ligne.
-// ============================================================
-
-model SyncQueue {
-  id          String     @id @default(uuid())
-  entityType  String     // "Sale", "StockMovement", etc.
-  localId     String     // ID temporaire local
-  payload     Json       // Données complètes à synchroniser
-  operation   String     // "CREATE", "UPDATE", "DELETE"
-  retryCount  Int        @default(0)
-  lastError   String?
-  syncStatus  SyncStatus @default(PENDING)
-  resolvedId  String?    // ID serveur après sync réussie
-
-  createdAt   DateTime   @default(now())
-  syncedAt    DateTime?
-
-  @@index([syncStatus, createdAt])
-  @@map("sync_queue")
-}
-
-// ============================================================
-// SECTION 14 – CONFIGURATION & PARAMÈTRES
-// Stockage des paramètres par boutique.
-// ============================================================
-
-// ============================================================
-// SECTION 15 – CHANGELOG SYNC (PULL BIDIRECTIONNEL)
-// Trace toutes les modifications pour permettre au client
-// de récupérer uniquement les changements depuis son dernier sync.
-// ============================================================
-
-model ChangeLog {
-  id         String   @id @default(uuid())
-  entityType String   // "Sale", "Product", "Customer", etc.
-  entityId   String   // ID de l'entité modifiée
-  operation  String   // "CREATE" | "UPDATE" | "DELETE"
-  shopId     String?  // Pour filtrer par boutique (nullable pour entités globales)
-  payload    Json     // État complet de l'entité après la modification
-  changedAt  DateTime @default(now())
-
-  @@index([changedAt])
-  @@index([shopId, changedAt])
-  @@index([entityType, changedAt])
-  @@map("change_log")
-}
-
-model ShopSetting {
-  id      String @id @default(uuid())
-  shopId  String?
-  key     String
-  value   String
-  group   String @default("general") // "receipt", "tax", "sync", "display"
-
-  @@unique([shopId, key])
-  @@map("shop_settings")
+  PENDING
+  SYNCED
+  CONFLICT
+  ERROR
 }

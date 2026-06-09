@@ -83,13 +83,13 @@ export class PrismaSaleRepository implements ISaleRepository {
             notes: data.notes,
             items: {
               create: data.items.map((item, i) => ({
-                productId: item.productId,
+                productId:   item.productId,
                 productName: products[i]!.name,
-                productSku: products[i]!.sku,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                discount: item.discount || 0,
-                totalPrice: (item.unitPrice - (item.discount || 0)) * item.quantity,
+                productSku:  products[i]!.sku,
+                quantity:    item.quantity,
+                unitPrice:   item.unitPrice,
+                discount:    item.discount || 0,
+                totalPrice:  (item.unitPrice - (item.discount || 0)) * item.quantity,
               })),
             },
             payments: {
