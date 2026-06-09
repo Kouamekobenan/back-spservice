@@ -36,16 +36,7 @@ async function bootstrap() {
   // 3. CONFIGURATION CORS
   // ─────────────────────────────────────────────
 
-  /**
-   * Liste des origines autorisées en production.
-   *
-   * NOTES :
-   * - 'file://' retiré  → les requêtes file:// n'envoient pas d'en-tête Origin,
-   *   elles sont déjà gérées par le cas (!origin) ci-dessous.
-   * - 'capacitor-electron://-' corrigé → l'origin réelle envoyée par Capacitor
-   *   Electron est 'capacitor-electron://localhost'.
-   * - 'app://.' corrigé → l'origin valide est 'app://' (sans le point final).
-   */
+  
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
@@ -102,11 +93,6 @@ async function bootstrap() {
       optionsSuccessStatus: 204,
     });
   }
-
-  // ─────────────────────────────────────────────
-  // 4. MIDDLEWARE DE DEBUG CORS (dev uniquement)
-  // ─────────────────────────────────────────────
-  // Log chaque requête entrante avec son origine pour diagnostiquer les problèmes CORS
   if (process.env.NODE_ENV !== 'production') {
     app.use((req, res, next) => {
       console.log(
@@ -120,16 +106,6 @@ async function bootstrap() {
       next();
     });
   }
-
-  // ─────────────────────────────────────────────
-  // 5. HELMET (sécurité des en-têtes HTTP)
-  // ─────────────────────────────────────────────
-
-  /**
-   * Le tableau connectSrc de la CSP DOIT correspondre exactement à allowedOrigins
-   * pour éviter que le navigateur bloque silencieusement les requêtes fetch/XHR
-   * même si CORS les laisse passer.
-   */
   if (process.env.NODE_ENV === 'production') {
     app.use(
       helmet({
@@ -142,8 +118,6 @@ async function bootstrap() {
             imgSrc:    ["'self'", 'data:', 'https:'],
           },
         },
-        // Autorise les navigateurs cross-origin à lire les réponses
-        // (indispensable pour un frontend hébergé sur un domaine différent)
         crossOriginResourcePolicy: { policy: 'cross-origin' },
         crossOriginOpenerPolicy:   false,
         crossOriginEmbedderPolicy: false,
@@ -192,7 +166,6 @@ async function bootstrap() {
         res.setHeader('WWW-Authenticate', 'Basic realm="Swagger Docs - SP SERVICE"');
         return res.status(401).send('🔒 Accès refusé : authentification requise.');
       }
-
       const base64Credentials = authHeader.split(' ')[1];
       const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
       const [user, password] = credentials.split(':');
@@ -205,10 +178,6 @@ async function bootstrap() {
       return res.status(401).send('🔒 Identifiants incorrects.');
     },
   );
-
-  // ─────────────────────────────────────────────
-  // 8. SWAGGER (documentation interactive de l'API)
-  // ─────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Api `SP SERVICE`')
     .setDescription(
