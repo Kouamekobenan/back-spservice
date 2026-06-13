@@ -51,11 +51,11 @@ export class FilterSaleDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Résultats par page, max 100 (défaut: 30)', default: 30 })
+  @ApiPropertyOptional({ description: 'Résultats par page, max 100 (défaut: 100)', default: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  limit?: number = 30;
+  // @Max(100)
+  limit?: number = 100;
 }
