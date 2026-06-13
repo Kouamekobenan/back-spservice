@@ -6,7 +6,12 @@ export class ProductQueryDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  search?: string; // Nom, SKU ou Barcode
+  search?: string; // LIKE sur name, SKU, barcode
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  barcode?: string; // Match exact sur barcode
 
   @ApiProperty({ required: false })
   @IsOptional()

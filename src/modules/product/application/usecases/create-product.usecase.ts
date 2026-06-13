@@ -18,7 +18,7 @@ export class CreateProductUseCase {
     if (data.barcode) {
       const existingBarcode = await this.productRepository.findByBarcode(data.barcode, data.shopId);
       if (existingBarcode) {
-        throw new ConflictException(`Un produit avec le code-barres ${data.barcode} existe déjà dans cette boutique.`);
+        throw new ConflictException({ message: 'Ce code-barres est déjà utilisé', field: 'barcode' });
       }
     }
      // Format: SK-TIMESTAMP-RANDOM

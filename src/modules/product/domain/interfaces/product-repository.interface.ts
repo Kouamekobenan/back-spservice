@@ -11,8 +11,9 @@ export interface IProductRepository {
   update(id: string, data: UpdateProductDto): Promise<Product>;
   delete(id: string): Promise<void>;
   findByBarcode(barcode: string, shopId: string): Promise<Product | null>;
+  findByBarcodeExact(barcode: string, shopId?: string): Promise<Product | null>;
   findBySku(sku: string, shopId: string): Promise<Product | null>;
   getLowStockAlerts(shopId: string): Promise<Product[]>;
   updateStock(id: string, quantity: number): Promise<Product>;
-   generateUniqueBarcode(shopId: string): Promise<string>
+  generateUniqueBarcode(shopId: string): Promise<string>;
 }

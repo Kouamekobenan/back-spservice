@@ -242,6 +242,15 @@ export class ShopKpi {
     return this.revenue - this.cogs - this.expenses;
   }
 
+  get grossMargin(): number {
+    return this.revenue - this.cogs;
+  }
+
+  get marginRate(): number {
+    if (this.revenue === 0) return 0;
+    return parseFloat(((this.grossMargin / this.revenue) * 100).toFixed(2));
+  }
+
   get voidRate(): number {
     if (this.transactions === 0) return 0;
     return parseFloat(((this.voidedCount / this.transactions) * 100).toFixed(2));

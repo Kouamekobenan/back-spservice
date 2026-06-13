@@ -191,6 +191,8 @@ export class GetShopsPerformanceUseCase {
         averageBasket:   kpi.averageBasket,
         totalDiscounts:  kpi.totalDiscounts,
         expenses:        kpi.expenses,
+        grossMargin:     kpi.grossMargin,
+        marginRate:      kpi.marginRate,
         netResult:       kpi.netResult,
         voidRate:        kpi.voidRate,
         rank:            0,

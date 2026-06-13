@@ -51,7 +51,7 @@ export class ProductRepository implements IProductRepository {
 
   async findAll(query: ProductQueryDto): Promise<PaginatedResponseRepository<Product>> {
     try {
-      const { page = 1, limit = 200, search, shopId, categoryId, isLowStock } = query;
+      const { page = 1, limit = 200, search, barcode, shopId, categoryId, isLowStock } = query;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ProductWhereInput = {};
@@ -59,7 +59,10 @@ export class ProductRepository implements IProductRepository {
       if (shopId) where.shopId = shopId;
       if (categoryId) where.categoryId = categoryId;
 
-      if (search) {
+      // Filtre exact par barcode (prioritaire sur search)
+      if (barcode) {
+        where.barcode = { equals: barcode, ...caseInsensitive() };
+      } else if (search) {
         where.OR = [
           { name: { contains: search, ...caseInsensitive() } },
           { barcode: { contains: search, ...caseInsensitive() } },
@@ -123,6 +126,15 @@ export class ProductRepository implements IProductRepository {
     const product = await this.prisma.product.findFirst({
       where: { barcode, shopId },
     });
+    return product ? this.mapper.toDomain(product) : null;
+  }
+
+  async findByBarcodeExact(barcode: string, shopId?: string): Promise<Product | null> {
+    const where: Prisma.ProductWhereInput = {
+      barcode: { equals: barcode, ...caseInsensitive() },
+    };
+    if (shopId) where.shopId = shopId;
+    const product = await this.prisma.product.findFirst({ where });
     return product ? this.mapper.toDomain(product) : null;
   }
 

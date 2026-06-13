@@ -299,6 +299,12 @@ export class ShopPerformanceItemDto {
   })
   expenses!: number;
 
+  @ApiProperty({ description: 'Marge brute en XOF (CA - COGS)', example: 1300000 })
+  grossMargin!: number;
+
+  @ApiProperty({ description: 'Taux de marge brute en %', example: 28.89 })
+  marginRate!: number;
+
   @ApiProperty({
     description: 'Résultat net = marge brute - dépenses',
     example: 750000,

@@ -131,8 +131,8 @@ model Product {
   saleItems        SaleItem[]
   stockMovements   StockMovement[]
 
-  @@unique([barcode, shopId])
   @@unique([sku, shopId])
+  @@index([barcode])
   @@index([shopId])
   @@index([shopId, isActive])
   @@map("products")

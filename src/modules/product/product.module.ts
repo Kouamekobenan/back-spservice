@@ -8,6 +8,7 @@ import { GetProductByIdUseCase } from './application/usecases/get-product-by-id.
 import { UpdateProductUseCase } from './application/usecases/update-product.usecase.js';
 import { DeleteProductUseCase } from './application/usecases/delete-product.usecase.js';
 import { GetStockAlertsUseCase } from './application/usecases/get-stock-alerts.usecase.js';
+import { GetProductByBarcodeUseCase } from './application/usecases/get-product-by-barcode.usecase.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 @Module({
@@ -18,6 +19,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
     CreateProductUseCase,
     GetAllProductsUseCase,
     GetProductByIdUseCase,
+    GetProductByBarcodeUseCase,
     UpdateProductUseCase,
     DeleteProductUseCase,
     GetStockAlertsUseCase,

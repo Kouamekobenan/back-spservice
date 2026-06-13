@@ -30,6 +30,7 @@ import { ProductResponseDto } from '../../application/dtos/product-response.dto.
 import { CreateProductUseCase } from '../../application/usecases/create-product.usecase.js';
 import { GetAllProductsUseCase } from '../../application/usecases/get-all-products.usecase.js';
 import { GetProductByIdUseCase } from '../../application/usecases/get-product-by-id.usecase.js';
+import { GetProductByBarcodeUseCase } from '../../application/usecases/get-product-by-barcode.usecase.js';
 import { UpdateProductUseCase } from '../../application/usecases/update-product.usecase.js';
 import { DeleteProductUseCase } from '../../application/usecases/delete-product.usecase.js';
 import { GetStockAlertsUseCase } from '../../application/usecases/get-stock-alerts.usecase.js';
@@ -45,6 +46,7 @@ export class ProductController {
     private readonly createProductUseCase: CreateProductUseCase,
     private readonly getAllProductsUseCase: GetAllProductsUseCase,
     private readonly getProductByIdUseCase: GetProductByIdUseCase,
+    private readonly getProductByBarcodeUseCase: GetProductByBarcodeUseCase,
     private readonly updateProductUseCase: UpdateProductUseCase,
     private readonly deleteProductUseCase: DeleteProductUseCase,
     private readonly getStockAlertsUseCase: GetStockAlertsUseCase,
@@ -85,6 +87,20 @@ export class ProductController {
       `Récupération des alertes de stock pour la boutique: ${shopId}`,
     );
     return await this.getStockAlertsUseCase.execute(shopId);
+  }
+
+  @Public()
+  @Get('barcode/:code')
+  @ApiOperation({ summary: 'Lookup produit par code-barres exact (scanner)' })
+  @ApiParam({ name: 'code', description: 'Code-barres du produit' })
+  @ApiOkResponse({ type: ProductResponseDto })
+  @ApiResponse({ status: 404, description: 'Produit non trouvé' })
+  async findByBarcode(
+    @Param('code') code: string,
+    @Query('shopId') shopId?: string,
+  ): Promise<ProductResponseDto> {
+    this.logger.log(`Lookup barcode: ${code}`);
+    return await this.getProductByBarcodeUseCase.execute(code, shopId);
   }
 
   @Public()
