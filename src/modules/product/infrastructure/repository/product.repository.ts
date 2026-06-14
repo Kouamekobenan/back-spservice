@@ -54,7 +54,7 @@ export class ProductRepository implements IProductRepository {
       const { page = 1, limit = 200, search, barcode, shopId, categoryId, isLowStock } = query;
       const skip = (page - 1) * limit;
 
-      const where: Prisma.ProductWhereInput = {};
+      const where: Prisma.ProductWhereInput = { isActive: true };
 
       if (shopId) where.shopId = shopId;
       if (categoryId) where.categoryId = categoryId;
@@ -110,6 +110,20 @@ export class ProductRepository implements IProductRepository {
     } catch (error) {
       this.logger.error(`Failed to update product: ${id}`);
       throw new InternalServerErrorException('Error during update');
+    }
+  }
+
+  async hasSalesHistory(id: string): Promise<boolean> {
+    const count = await this.prisma.saleItem.count({ where: { productId: id } });
+    return count > 0;
+  }
+
+  async softDelete(id: string): Promise<void> {
+    try {
+      await this.prisma.product.update({ where: { id }, data: { isActive: false } });
+    } catch (error) {
+      this.logger.error(`Failed to soft-delete product: ${id}`);
+      throw new InternalServerErrorException('Error during deletion');
     }
   }
 

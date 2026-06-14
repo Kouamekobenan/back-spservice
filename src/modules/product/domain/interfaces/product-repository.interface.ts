@@ -10,6 +10,8 @@ export interface IProductRepository {
   findAll(query: ProductQueryDto): Promise<PaginatedResponseRepository<Product>>;
   update(id: string, data: UpdateProductDto): Promise<Product>;
   delete(id: string): Promise<void>;
+  softDelete(id: string): Promise<void>;
+  hasSalesHistory(id: string): Promise<boolean>;
   findByBarcode(barcode: string, shopId: string): Promise<Product | null>;
   findByBarcodeExact(barcode: string, shopId?: string): Promise<Product | null>;
   findBySku(sku: string, shopId: string): Promise<Product | null>;

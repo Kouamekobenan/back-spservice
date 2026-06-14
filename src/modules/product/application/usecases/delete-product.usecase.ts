@@ -8,11 +8,19 @@ export class DeleteProductUseCase {
     private readonly productRepository: IProductRepository,
   ) {}
 
-  async execute(id: string): Promise<void> {
+  async execute(id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
     const existingProduct = await this.productRepository.findById(id);
     if (!existingProduct) {
       throw new NotFoundException(`Produit avec l'ID ${id} non trouvé`);
     }
+
+    const hasSales = await this.productRepository.hasSalesHistory(id);
+    if (hasSales) {
+      await this.productRepository.softDelete(id);
+      return { deleted: false, deactivated: true };
+    }
+
     await this.productRepository.delete(id);
+    return { deleted: true, deactivated: false };
   }
 }

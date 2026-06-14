@@ -135,7 +135,10 @@ export class ProductController {
     @Param('id') id: string,
   ): Promise<{ success: boolean; message: string }> {
     this.logger.log(`Suppression du produit: ${id}`);
-    await this.deleteProductUseCase.execute(id);
-    return { success: true, message: 'Produit supprimé avec succès' };
+    const result = await this.deleteProductUseCase.execute(id);
+    const message = result.deactivated
+      ? 'Produit désactivé (historique de ventes conservé)'
+      : 'Produit supprimé avec succès';
+    return { success: true, message };
   }
 }
