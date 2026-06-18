@@ -21,6 +21,20 @@ async function dispatchSyncItem(
       if (operation === SyncOperation.CREATE) {
         const existing = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
+
+        // Génère receiptNumber si absent (ventes créées hors-ligne)
+        if (!(payload as any)['receiptNumber']) {
+          const today = new Date();
+          const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+          const count = await tx.sale.count({
+            where: {
+              shopId: (payload as any)['shopId'],
+              createdAt: { gte: new Date(today.setHours(0, 0, 0, 0)) },
+            },
+          });
+          (payload as any)['receiptNumber'] = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+        }
+
         const created = await tx.sale.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
@@ -231,7 +245,7 @@ export class ProcessSyncQueueUseCase {
         validateSyncPayload(item.entityType, item.operation, item.payload);
 
         // 2. Dispatch dans une transaction atomique
-        const resolvedId = await this.prisma.$transaction(async (tx) => {
+        const resolvedId = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           return dispatchSyncItem(item, tx);
         });
 

@@ -30,12 +30,12 @@ export class CreatePurchaseOrderItemDto {
 
 export class CreatePurchaseOrderDto {
   @ApiProperty({ example: 'uuid-supplier' })
-  @IsUUID('4')
+  @IsOptional()
   @IsNotEmpty()
-  supplierId: string;
+  supplierId?: string;
 
   @ApiProperty({ example: 'uuid-shop' })
-  @IsUUID('4')
+  // @IsUUID('4')
   @IsNotEmpty()
   shopId: string;
 
@@ -44,7 +44,10 @@ export class CreatePurchaseOrderDto {
   @IsDateString()
   expectedAt?: string;
 
-  @ApiProperty({ example: 'Commande urgente pour le stock de sécurité', required: false })
+  @ApiProperty({
+    example: 'Commande urgente pour le stock de sécurité',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   notes?: string;

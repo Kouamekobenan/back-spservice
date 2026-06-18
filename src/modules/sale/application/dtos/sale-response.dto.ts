@@ -22,7 +22,7 @@ export class SalePaymentResponseDto {
 
 export class SaleResponseDto {
   @ApiProperty() id!: string;
-  @ApiProperty() receiptNumber!: string;
+  @ApiProperty() receiptNumber: string;
   @ApiProperty() status!: string;
   @ApiProperty() subtotal!: number;
   @ApiProperty() discountAmount!: number;

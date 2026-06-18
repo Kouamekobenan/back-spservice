@@ -17,17 +17,17 @@ export class SaleItemDto {
   @ApiProperty({ example: 'prod-uuid', description: 'ID du produit' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ example: 2, description: 'Quantité vendue' })
   @IsNumber()
   @Min(0.001)
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ example: 1500, description: 'Prix unitaire appliqué' })
   @IsNumber()
   @Min(0)
-  unitPrice: number;
+  unitPrice!: number;
 
   @ApiProperty({ example: 0, description: 'Remise sur cet article' })
   @IsNumber()
@@ -38,12 +38,12 @@ export class SaleItemDto {
 export class SalePaymentDto {
   @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.CASH })
   @IsEnum(PaymentMethod)
-  method: PaymentMethod;
+  method!: PaymentMethod;
 
   @ApiProperty({ example: 3000, description: 'Montant payé via cette méthode' })
   @IsNumber()
   @Min(0)
-  amount: number;
+  amount!: number;
 
   @ApiProperty({ example: 'REF-12345', description: 'Référence de transaction', required: false })
   @IsString()

@@ -29,7 +29,7 @@ function validateSale(op: SyncOperation, payload: Payload): void {
   if (op === SyncOperation.CREATE) {
     assertField(payload, 'shopId', 'Sale');
     assertField(payload, 'userId', 'Sale');
-    assertField(payload, 'receiptNumber', 'Sale');
+    // receiptNumber généré par le backend si absent (ventes offline)
     assertPositiveNumber(payload, 'totalAmount', 'Sale');
 
     const items = payload['items'];
