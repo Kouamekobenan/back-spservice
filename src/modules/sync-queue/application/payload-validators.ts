@@ -29,17 +29,7 @@ function validateSale(op: SyncOperation, payload: Payload): void {
   if (op === SyncOperation.CREATE) {
     assertField(payload, 'shopId', 'Sale');
     assertField(payload, 'userId', 'Sale');
-    // receiptNumber généré par le backend si absent (ventes offline)
-    assertPositiveNumber(payload, 'totalAmount', 'Sale');
-
-    const items = payload['items'];
-    if (!Array.isArray(items) && payload['itemsCount'] === undefined) {
-      // Les items peuvent être absents si la vente n'en a pas (ticket annulé)
-      // mais totalAmount doit être cohérent
-    }
-    if (Number(payload['totalAmount']) < 0) {
-      throw new PayloadValidationError('Sale', 'totalAmount', 'ne peut pas être négatif');
-    }
+    // receiptNumber et totalAmount calculés par le backend si absents (ventes offline)
   }
 }
 

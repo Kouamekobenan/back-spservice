@@ -35,6 +35,20 @@ async function dispatchSyncItem(
           (payload as any)['receiptNumber'] = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
         }
 
+        // Calcule totalAmount depuis les items si absent (ventes créées hors-ligne)
+        if ((payload as any)['totalAmount'] == null) {
+          const items: Array<{ quantity: number; unitPrice: number; discount?: number }> =
+            Array.isArray((payload as any)['items']) ? (payload as any)['items'] : [];
+          const subtotal = items.reduce(
+            (sum, item) =>
+              sum + Number(item.quantity) * Number(item.unitPrice) - Number(item.discount ?? 0),
+            0,
+          );
+          const discountAmount = Number((payload as any)['discountAmount'] ?? 0);
+          const taxAmount     = Number((payload as any)['taxAmount'] ?? 0);
+          (payload as any)['subtotal']    = (payload as any)['subtotal'] ?? subtotal;
+          (payload as any)['totalAmount'] = Math.max(0, subtotal - discountAmount + taxAmount);
+        }
         const created = await tx.sale.create({
           data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
           select: { id: true },
