@@ -5,9 +5,7 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
-
   private readonly saltRounds = 10;
-
   //  Hasher le mot de passe utilisateur
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, this.saltRounds);
@@ -42,7 +40,7 @@ export class AuthService {
       },
       {
         secret: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
-        expiresIn: '1d', // durée de vie du access token
+        expiresIn: '1d', 
       },
     );
 

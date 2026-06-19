@@ -82,7 +82,7 @@ export class AuthController {
     return await this.authMeUseCase.execute(req.user.userId);
   }
   // /**
-  @Public() // ✅ Uniquement pour cette route
+  @Public() // Uniquement pour cette route
   @Post('register')
   @ApiOperation({ summary: 'Créer un nouvel utilisateur' })
   @ApiResponse({

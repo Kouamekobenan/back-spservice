@@ -22,35 +22,77 @@ async function dispatchSyncItem(
         const existing = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
 
+        // Sépare les relations imbriquées du reste du payload
+        const { items: rawItems = [], payments: rawPayments = [], ...saleData } = payload as any;
+
         // Génère receiptNumber si absent (ventes créées hors-ligne)
-        if (!(payload as any)['receiptNumber']) {
+        if (!saleData['receiptNumber']) {
           const today = new Date();
           const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
           const count = await tx.sale.count({
             where: {
-              shopId: (payload as any)['shopId'],
+              shopId: saleData['shopId'],
               createdAt: { gte: new Date(today.setHours(0, 0, 0, 0)) },
             },
           });
-          (payload as any)['receiptNumber'] = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+          saleData['receiptNumber'] = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
         }
 
         // Calcule totalAmount depuis les items si absent (ventes créées hors-ligne)
-        if ((payload as any)['totalAmount'] == null) {
-          const items: Array<{ quantity: number; unitPrice: number; discount?: number }> =
-            Array.isArray((payload as any)['items']) ? (payload as any)['items'] : [];
-          const subtotal = items.reduce(
-            (sum, item) =>
-              sum + Number(item.quantity) * Number(item.unitPrice) - Number(item.discount ?? 0),
+        if (saleData['totalAmount'] == null) {
+          const subtotal = (rawItems as Array<any>).reduce(
+            (sum: number, it: any) =>
+              sum + Number(it.quantity) * Number(it.unitPrice) - Number(it.discount ?? 0),
             0,
           );
-          const discountAmount = Number((payload as any)['discountAmount'] ?? 0);
-          const taxAmount     = Number((payload as any)['taxAmount'] ?? 0);
-          (payload as any)['subtotal']    = (payload as any)['subtotal'] ?? subtotal;
-          (payload as any)['totalAmount'] = Math.max(0, subtotal - discountAmount + taxAmount);
+          const discountAmount = Number(saleData['discountAmount'] ?? 0);
+          const taxAmount      = Number(saleData['taxAmount'] ?? 0);
+          saleData['subtotal']    = saleData['subtotal'] ?? subtotal;
+          saleData['totalAmount'] = Math.max(0, subtotal - discountAmount + taxAmount);
         }
+
+        // Enrichit les items: récupère productName depuis la DB et calcule totalPrice
+        const enrichedItems = await Promise.all(
+          (rawItems as Array<any>).map(async (it: any) => {
+            let productName: string = it.productName;
+            let productSku: string | null = it.productSku ?? null;
+            if (!productName) {
+              const product = await tx.product.findUnique({
+                where: { id: it.productId },
+                select: { name: true, sku: true },
+              });
+              productName = product?.name ?? 'Produit inconnu';
+              productSku  = productSku ?? product?.sku ?? null;
+            }
+            const totalPrice =
+              it.totalPrice ??
+              Number(it.quantity) * Number(it.unitPrice) - Number(it.discount ?? 0);
+            return {
+              productId:   it.productId,
+              productName,
+              productSku,
+              quantity:    it.quantity,
+              unitPrice:   it.unitPrice,
+              discount:    it.discount ?? 0,
+              totalPrice,
+            };
+          }),
+        );
+
         const created = await tx.sale.create({
-          data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
+          data: {
+            ...saleData,
+            localId,
+            syncStatus: 'SYNCED',
+            items:    { create: enrichedItems },
+            payments: {
+              create: (rawPayments as Array<any>).map((p: any) => ({
+                method:    p.method,
+                amount:    p.amount,
+                reference: p.reference ?? null,
+              })),
+            },
+          },
           select: { id: true },
         });
         return created.id;
@@ -175,8 +217,22 @@ async function dispatchSyncItem(
       if (operation === SyncOperation.CREATE) {
         const existing = await tx.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
+        const { items: rawItems = [], ...orderData } = payload as any;
         const created = await tx.purchaseOrder.create({
-          data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
+          data: {
+            ...orderData,
+            localId,
+            syncStatus: 'SYNCED',
+            items: {
+              create: (rawItems as Array<any>).map((it: any) => ({
+                productId:        it.productId,
+                quantityOrdered:  it.quantityOrdered,
+                quantityReceived: it.quantityReceived ?? 0,
+                unitCost:         it.unitCost,
+                totalCost:        it.totalCost ?? Number(it.quantityOrdered) * Number(it.unitCost),
+              })),
+            },
+          },
           select: { id: true },
         });
         return created.id;
@@ -184,7 +240,8 @@ async function dispatchSyncItem(
       if (operation === SyncOperation.UPDATE) {
         const target = await tx.purchaseOrder.findFirst({ where: { localId }, select: { id: true } });
         if (!target) throw new Error(`PurchaseOrder localId="${localId}" introuvable`);
-        await tx.purchaseOrder.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const { items: _items, ...orderData } = payload as any;
+        await tx.purchaseOrder.update({ where: { id: target.id }, data: { ...orderData, syncStatus: 'SYNCED' } });
         return target.id;
       }
       break;
