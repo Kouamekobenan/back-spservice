@@ -40,7 +40,7 @@ export class AuthService {
       },
       {
         secret: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET,
-        expiresIn: '1d', 
+        expiresIn: '7d', 
       },
     );
 
