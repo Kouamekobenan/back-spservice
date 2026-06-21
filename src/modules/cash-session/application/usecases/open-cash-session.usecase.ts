@@ -12,9 +12,11 @@ export class OpenCashSessionUseCase {
 
   async execute(data: OpenCashSessionDto): Promise<CashSession> {
     const activeSession = await this.cashSessionRepository.findActiveByUserId(data.userId);
-    
+
+    // Idempotent : si une session est déjà ouverte, on la retourne directement
+    // (cas fréquent offline-first : le client réessaie à la reconnexion)
     if (activeSession) {
-      throw new ConflictException('Une session de caisse est déjà ouverte pour cet utilisateur.');
+      return activeSession;
     }
 
     return await this.cashSessionRepository.create(data);

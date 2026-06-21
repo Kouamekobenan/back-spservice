@@ -190,9 +190,17 @@ async function dispatchSyncItem(
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
-        const target = await tx.cashSession.findFirst({ where: { localId }, select: { id: true } });
+        // Cherche d'abord par localId, sinon par le vrai UUID (session ouverte en ligne)
+        let target = await tx.cashSession.findFirst({ where: { localId }, select: { id: true } });
+        if (!target && (payload as any)['id']) {
+          target = await tx.cashSession.findUnique({ where: { id: (payload as any)['id'] }, select: { id: true } });
+        }
         if (!target) throw new Error(`CashSession localId="${localId}" introuvable`);
-        await tx.cashSession.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const { id: _id, ...sessionData } = payload as any;
+        await tx.cashSession.update({
+          where: { id: target.id },
+          data: { ...sessionData, localId, syncStatus: 'SYNCED' },
+        });
         return target.id;
       }
       break;
