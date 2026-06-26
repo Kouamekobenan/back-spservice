@@ -14,6 +14,8 @@ export class UserDto {
   @IsOptional() @IsString() name?: string;
   @ApiPropertyOptional({ example: '+2250701020304' })
   @IsOptional() @IsString() phone?: string;
+  @ApiPropertyOptional({ example: 'user@example.com' })
+  @IsOptional() @IsString() email?: string;
   @ApiPropertyOptional({ enum: UserRole, default: UserRole.CASHIER })
   @IsOptional() @IsEnum(UserRole) role?: UserRole;
   @ApiPropertyOptional({ example: '1234' })

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Rapport Mensuel — {{shopName}}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; color: #333; }
+    .container { max-width: 650px; margin: 32px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .header { background: #7b1fa2; padding: 24px 32px; }
+    .header h1 { color: #fff; margin: 0 0 4px; font-size: 20px; }
+    .header p { color: #e1bee7; margin: 0; font-size: 13px; }
+    .body { padding: 24px 32px; }
+    .kpi-grid { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .kpi { flex: 1; min-width: 130px; background: #f8f9fa; border-radius: 8px; padding: 14px; text-align: center; }
+    .kpi .value { font-size: 18px; font-weight: bold; color: #7b1fa2; }
+    .kpi .label { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; }
+    .growth { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+    .growth.up { background: #e8f5e9; color: #388e3c; }
+    .growth.down { background: #fce8e6; color: #ea4335; }
+    .compare-row { display: flex; gap: 16px; margin-bottom: 20px; }
+    .compare-card { flex: 1; border-radius: 8px; padding: 14px; }
+    .compare-card.current { background: #f3e5f5; border: 2px solid #7b1fa2; }
+    .compare-card.previous { background: #f8f9fa; border: 2px solid #e0e0e0; }
+    .compare-card h4 { margin: 0 0 10px; font-size: 13px; color: #555; }
+    .compare-card .val { font-size: 16px; font-weight: bold; }
+    .compare-card.current .val { color: #7b1fa2; }
+    .compare-card.previous .val { color: #888; }
+    .compare-card .sub { font-size: 12px; color: #888; margin-top: 4px; }
+    h3 { font-size: 14px; font-weight: bold; color: #555; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; margin: 20px 0 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #f8f9fa; padding: 8px 10px; text-align: left; color: #666; font-weight: normal; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    .badge-warn { background: #fff3cd; color: #856404; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
+    .footer { background: #f8f9fa; padding: 14px 32px; text-align: center; font-size: 11px; color: #aaa; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📋 Rapport Mensuel — {{shopName}}</h1>
+    <p>{{monthLabel}}</p>
+  </div>
+  <div class="body">
+    <p>
+      Évolution du CA :
+      <span class="growth {{#if (gt revenueGrowth 0)}}up{{else}}down{{/if}}">
+        {{#if (gt revenueGrowth 0)}}+{{/if}}{{revenueGrowth}}% vs mois précédent
+      </span>
+    </p>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="value">{{currentMonth.revenue}} F</div>
+        <div class="label">CA total</div>
+      </div>
+      <div class="kpi">
+        <div class="value">{{currentMonth.sales}}</div>
+        <div class="label">Ventes</div>
+      </div>
+      <div class="kpi">
+        <div class="value">{{currentMonth.expenses}} F</div>
+        <div class="label">Dépenses</div>
+      </div>
+      <div class="kpi">
+        <div class="value">{{currentMonth.netRevenue}} F</div>
+        <div class="label">Bénéfice net</div>
+      </div>
+    </div>
+
+    <div class="compare-row">
+      <div class="compare-card current">
+        <h4>✅ {{monthLabel}}</h4>
+        <div class="val">{{currentMonth.revenue}} FCFA</div>
+        <div class="sub">{{currentMonth.sales}} ventes &bull; net {{currentMonth.netRevenue}} FCFA</div>
+      </div>
+      <div class="compare-card previous">
+        <h4>Mois précédent</h4>
+        <div class="val">{{previousMonth.revenue}} FCFA</div>
+        <div class="sub">{{previousMonth.sales}} ventes &bull; net {{previousMonth.netRevenue}} FCFA</div>
+      </div>
+    </div>
+
+    <h3>📅 Évolution par semaine</h3>
+    <table>
+      <thead><tr><th>Semaine</th><th>Ventes</th><th>CA (FCFA)</th></tr></thead>
+      <tbody>
+        {{#each weeklyBreakdown}}
+        <tr><td>{{this.week}}</td><td>{{this.sales}}</td><td>{{this.revenue}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    {{#if topProducts.length}}
+    <h3>🏆 Top 5 Produits</h3>
+    <table>
+      <thead><tr><th>Produit</th><th>Qté vendue</th><th>CA (FCFA)</th></tr></thead>
+      <tbody>
+        {{#each topProducts}}
+        <tr><td>{{this.name}}</td><td>{{this.qty}}</td><td>{{this.revenue}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+
+    {{#if topCategories.length}}
+    <h3>📦 Top Catégories</h3>
+    <table>
+      <thead><tr><th>Catégorie</th><th>CA (FCFA)</th></tr></thead>
+      <tbody>
+        {{#each topCategories}}
+        <tr><td>{{this.name}}</td><td>{{this.revenue}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+
+    {{#if lowStockProducts.length}}
+    <h3>⚠️ Produits en stock bas</h3>
+    <table>
+      <thead><tr><th>Produit</th><th>Stock</th><th>Unité</th></tr></thead>
+      <tbody>
+        {{#each lowStockProducts}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td><span class="badge-warn">{{this.stock}}</span></td>
+          <td>{{this.unit}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+  </div>
+  <div class="footer">&copy; {{year}} SP Service — Rapport généré automatiquement</div>
+</div>
+</body>
+</html>

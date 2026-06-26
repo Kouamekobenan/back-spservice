@@ -17,6 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RefreshTokenUseCase } from './usecases/refresh-token';
 import { GenerateOfflineSessionUseCase } from './usecases/generate-offline-session.use-case';
 import { PinLoginUseCase } from './usecases/pin-login.use-case';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PinLoginUseCase } from './usecases/pin-login.use-case';
         signOptions: { expiresIn: '1d' },
       }),
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [

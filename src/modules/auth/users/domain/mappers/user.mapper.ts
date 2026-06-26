@@ -16,6 +16,7 @@ export class UserMapper {
       passwordHash: data.passwordHash ?? '',
       name: data.name ?? '',
       phone: data.phone,
+      email: data.email,
       role: data.role,
       pin: data.pin,
       isActive: data.isActive,
@@ -24,10 +25,6 @@ export class UserMapper {
   }
 
   toApplication(userData: any & { shopAccesses?: any[] }): User {
-    // const shopAccesses = (userData.shopAccesses || []).map(
-    //   (access: any) => new UserShopAccess(access.shopId, access.roleInShop as Role)
-    // );
-
     return new User(
       userData.id,
       userData.username,
@@ -35,6 +32,7 @@ export class UserMapper {
       userData.refreshToken,
       userData.name,
       userData.phone,
+      userData.email ?? null,
       userData.role as Role,
       userData.pin,
       userData.isActive,
@@ -52,6 +50,7 @@ export class UserMapper {
       passwordHash: userData.passwordHash,
       role: userData.role,
       phone: userData.phone,
+      email: userData.email,
       isActive: userData.isActive,
     };
   }

@@ -17,6 +17,7 @@ export class User {
     private refreshToken: string | null,
     private name: string | null,
     private phone: string | null,
+    private email: string | null,
     private role: UserRole,
     private pin: string | null,
     private isActive: boolean,
@@ -33,6 +34,7 @@ export class User {
   getPassword(): string { return this.passwordHash; }
   getName(): string | null { return this.name; }
   getPhone(): string | null { return this.phone; }
+  getEmail(): string | null { return this.email; }
   getPin(): string | null { return this.pin; }
   getIsActive(): boolean { return this.isActive; }
   getRefreshToken(): string | null { return this.refreshToken; }

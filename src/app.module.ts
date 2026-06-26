@@ -29,6 +29,8 @@ import { SyncModule } from './modules/sync/sync.module.js';
 import { CashierDashboardModule } from './modules/cashier-dashboard/cashier-dashboard.module.js';
 import { ReportExportModule } from './modules/report-export/report-export.module.js';
 import { InventoryDashboardModule } from './modules/inventory-dashboard/inventory-dashboard.module.js';
+import { MailModule } from './modules/mail/mail.module';
+import { ReportSchedulerModule } from './modules/report-scheduler/report-scheduler.module';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { InventoryDashboardModule } from './modules/inventory-dashboard/inventor
     CashierDashboardModule,
     ReportExportModule,
     InventoryDashboardModule,
+    MailModule,
+    ReportSchedulerModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

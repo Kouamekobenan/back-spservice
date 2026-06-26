@@ -1,16 +1,20 @@
-import { ConflictException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { AuthService } from '../services/auth.service.js';
 import type { IUserRepository } from '../users/application/interfaces/user.interface.repository.js';
 import { UserDto } from '../users/application/dtos/user.dto.js';
 import { UserRole } from '../users/domain/enums/role.enum.js';
 import type { User } from '../users/domain/entities/user.entity.js';
+import { MailService } from '../../mail/mail.service.js';
 
 @Injectable()
 export class RegisterUserUseCase {
+  private readonly logger = new Logger(RegisterUserUseCase.name);
+
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
     private readonly authService: AuthService,
+    private readonly mailService: MailService,
   ) {}
 
   async execute(userDto: UserDto) {
@@ -61,6 +65,23 @@ export class RegisterUserUseCase {
       phone:  newUser.getPhone() ?? '',
       role:   newUser.getRole(),
     });
+
+    // Envoi asynchrone du mail de bienvenue — non bloquant
+    const email = newUser.getEmail();
+    this.logger.log(`[Register] email récupéré pour welcome mail : "${email}"`);
+    if (email) {
+      this.mailService
+        .sendWelcomeMail({
+          to: email,
+          name: newUser.getName() ?? newUser.getUsername(),
+          shopName: userDto.shopId ? 'votre boutique' : 'SP Service',
+          role: newUser.getRole(),
+        })
+        .then(() => this.logger.log(`[Register] Welcome mail envoyé à ${email}`))
+        .catch((err) => this.logger.warn(`Welcome mail non envoyé : ${err.message}`));
+    } else {
+      this.logger.warn('[Register] Pas de champ email fourni — welcome mail ignoré');
+    }
 
     return {
       message: 'Compte créé avec succès.',

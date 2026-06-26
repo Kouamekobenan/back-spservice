@@ -33,6 +33,7 @@ import { LogoutUserUseCase } from '../usecases/logout-user.usecase';
 import { UpdateUserUseCase } from '../users/application/usecases/update-user.usecase';
 import { Public } from '../../../common/decorators/public.decorator';
 import { RefreshTokenUseCase } from '../usecases/refresh-token';
+import { MailService } from '../../mail/mail.service';
 // import { ResetPasswordDto } from '../../otp/application/dtos/resetPassword.dto';
 
 @ApiTags('Authentification')
@@ -50,6 +51,7 @@ export class AuthController {
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly generateOfflineSessionUseCase: GenerateOfflineSessionUseCase,
     private readonly pinLoginUseCase: PinLoginUseCase,
+    private readonly mailService: MailService,
   ) {}
 
   // ========================================
@@ -246,6 +248,26 @@ export class AuthController {
   async pinLogin(@Body() dto: PinLoginDto) {
     const identifier = dto.phone ?? dto.username ?? '';
     return this.pinLoginUseCase.execute(identifier, dto.pin);
+  }
+
+  @Public()
+  @Post('test-mail')
+  @ApiOperation({ summary: 'Tester la connexion Mailtrap (dev uniquement)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { email: { type: 'string', example: 'test@example.com' } },
+      required: ['email'],
+    },
+  })
+  async testMail(@Body('email') email: string) {
+    await this.mailService.sendWelcomeMail({
+      to: email,
+      name: 'Test User',
+      shopName: 'SP Service Test',
+      role: 'CASHIER',
+    });
+    return { message: `Mail de test envoyé à ${email}` };
   }
 
   // 🔒 3. Reset Password (UseCase principal)

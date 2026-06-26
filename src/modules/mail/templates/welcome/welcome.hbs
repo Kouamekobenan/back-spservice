@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bienvenue sur SP Service</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: #1a73e8; padding: 32px; text-align: center; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
+    .body { padding: 32px; color: #333333; }
+    .body h2 { font-size: 20px; margin-top: 0; }
+    .badge { display: inline-block; background: #e8f0fe; color: #1a73e8; border-radius: 4px; padding: 4px 12px; font-size: 13px; font-weight: bold; }
+    .footer { background: #f8f9fa; padding: 16px 32px; text-align: center; font-size: 12px; color: #888888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>SP Service</h1>
+    </div>
+    <div class="body">
+      <h2>Bienvenue, {{name}} !</h2>
+      <p>Votre compte a été créé avec succès sur la boutique <strong>{{shopName}}</strong>.</p>
+      <p>Votre rôle : <span class="badge">{{role}}</span></p>
+      <p>Vous pouvez désormais vous connecter à l'application et commencer à utiliser le système de caisse.</p>
+      <p>Si vous n'êtes pas à l'origine de cette inscription, veuillez contacter votre administrateur.</p>
+    </div>
+    <div class="footer">
+      &copy; {{year}} SP Service — Système ERP/POS pour commerces
+    </div>
+  </div>
+</body>
+</html>

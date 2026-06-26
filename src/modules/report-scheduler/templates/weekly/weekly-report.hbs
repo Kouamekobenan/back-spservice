@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Rapport Hebdomadaire — {{shopName}}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; color: #333; }
+    .container { max-width: 650px; margin: 32px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .header { background: #0f9d58; padding: 24px 32px; }
+    .header h1 { color: #fff; margin: 0 0 4px; font-size: 20px; }
+    .header p { color: #c8f0dd; margin: 0; font-size: 13px; }
+    .body { padding: 24px 32px; }
+    .compare-grid { display: flex; gap: 16px; margin-bottom: 24px; }
+    .compare-card { flex: 1; border-radius: 8px; padding: 16px; }
+    .compare-card.current { background: #e6f4ea; border: 2px solid #0f9d58; }
+    .compare-card.previous { background: #f8f9fa; border: 2px solid #e0e0e0; }
+    .compare-card h4 { margin: 0 0 12px; font-size: 13px; color: #555; }
+    .compare-card .val { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+    .compare-card.current .val { color: #0f9d58; }
+    .compare-card.previous .val { color: #888; }
+    .compare-card .sub { font-size: 12px; color: #888; }
+    .growth { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+    .growth.up { background: #e6f4ea; color: #0f9d58; }
+    .growth.down { background: #fce8e6; color: #ea4335; }
+    .growth.flat { background: #f8f9fa; color: #888; }
+    h3 { font-size: 14px; font-weight: bold; color: #555; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; margin: 20px 0 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #f8f9fa; padding: 8px 10px; text-align: left; color: #666; font-weight: normal; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    .footer { background: #f8f9fa; padding: 14px 32px; text-align: center; font-size: 11px; color: #aaa; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📈 Rapport Hebdomadaire — {{shopName}}</h1>
+    <p>{{weekLabel}}</p>
+  </div>
+  <div class="body">
+    <p>
+      CA cette semaine :
+      <span class="growth {{#if (gt revenueGrowth 0)}}up{{else}}{{#if (lt revenueGrowth 0)}}down{{else}}flat{{/if}}{{/if}}">
+        {{#if (gt revenueGrowth 0)}}+{{/if}}{{revenueGrowth}}%
+      </span>
+      &nbsp;|&nbsp; Ventes :
+      <span class="growth {{#if (gt salesGrowth 0)}}up{{else}}{{#if (lt salesGrowth 0)}}down{{else}}flat{{/if}}{{/if}}">
+        {{#if (gt salesGrowth 0)}}+{{/if}}{{salesGrowth}}%
+      </span>
+      vs semaine précédente
+    </p>
+
+    <div class="compare-grid">
+      <div class="compare-card current">
+        <h4>✅ Cette semaine</h4>
+        <div class="val">{{currentWeek.revenue}} FCFA</div>
+        <div class="sub">{{currentWeek.sales}} ventes &bull; {{currentWeek.expenses}} FCFA dépenses</div>
+      </div>
+      <div class="compare-card previous">
+        <h4>Semaine précédente</h4>
+        <div class="val">{{previousWeek.revenue}} FCFA</div>
+        <div class="sub">{{previousWeek.sales}} ventes &bull; {{previousWeek.expenses}} FCFA dépenses</div>
+      </div>
+    </div>
+
+    <h3>📅 Détail par jour</h3>
+    <table>
+      <thead><tr><th>Jour</th><th>Ventes</th><th>CA (FCFA)</th></tr></thead>
+      <tbody>
+        {{#each dailyBreakdown}}
+        <tr>
+          <td>{{this.day}}</td>
+          <td>{{this.sales}}</td>
+          <td>{{this.revenue}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    {{#if topProducts.length}}
+    <h3>🏆 Top 5 Produits</h3>
+    <table>
+      <thead><tr><th>Produit</th><th>Qté</th><th>CA (FCFA)</th></tr></thead>
+      <tbody>
+        {{#each topProducts}}
+        <tr><td>{{this.name}}</td><td>{{this.qty}}</td><td>{{this.revenue}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+  </div>
+  <div class="footer">&copy; {{year}} SP Service — Rapport généré automatiquement</div>
+</div>
+</body>
+</html>
