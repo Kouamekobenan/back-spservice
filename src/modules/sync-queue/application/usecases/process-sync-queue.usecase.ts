@@ -25,6 +25,22 @@ async function dispatchSyncItem(
         // Sépare les relations imbriquées du reste du payload
         const { items: rawItems = [], payments: rawPayments = [], ...saleData } = payload as any;
 
+        // Résout cashSessionId local → UUID serveur si la session a été créée hors-ligne
+        if (saleData['cashSessionId']) {
+          const sessionItem = await tx.syncQueue.findFirst({
+            where: { localId: saleData['cashSessionId'], entityType: 'CashSession' },
+            select: { resolvedId: true },
+          });
+          if (sessionItem?.resolvedId) {
+            saleData['cashSessionId'] = sessionItem.resolvedId;
+          } else if (sessionItem) {
+            throw new Error(
+              `CashSession "${saleData['cashSessionId']}" pas encore synchronisée — la vente sera retraitée après la session`,
+            );
+          }
+          // Pas de sessionItem = cashSessionId est déjà un UUID serveur (session ouverte en ligne)
+        }
+
         // Génère receiptNumber si absent (ventes créées hors-ligne)
         if (!saleData['receiptNumber']) {
           const today = new Date();
@@ -305,7 +321,25 @@ export class ProcessSyncQueueUseCase {
 
   async execute(batchSize = 50): Promise<ProcessSyncResultDto> {
     const startTime = Date.now();
-    const pendingItems = await this.repo.findPending(batchSize);
+    const rawPending = await this.repo.findPending(batchSize);
+
+    // Priorité de traitement: les entités référencées doivent passer avant celles qui les référencent
+    const ENTITY_PRIORITY: Record<string, number> = {
+      CashSession:   0,
+      Product:       1,
+      Customer:      2,
+      Expense:       3,
+      StockMovement: 4,
+      PurchaseOrder: 5,
+      CreditPayment: 6,
+      StockTransfer: 7,
+      Sale:          8, // en dernier car référence CashSession, Product, Customer
+    };
+    const pendingItems = rawPending.sort((a, b) => {
+      const pa = ENTITY_PRIORITY[a.entityType] ?? 50;
+      const pb = ENTITY_PRIORITY[b.entityType] ?? 50;
+      return pa !== pb ? pa - pb : a.createdAt.getTime() - b.createdAt.getTime();
+    });
 
     if (pendingItems.length === 0) {
       this.logger.log('Aucun item PENDING à traiter.');

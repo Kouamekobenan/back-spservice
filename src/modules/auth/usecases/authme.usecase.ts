@@ -15,7 +15,6 @@ export class AuthMeUseCase {
   ) {}
   async execute(userId: string): Promise<User | null> {
     try {
-      console.log('user by ID:', userId);
       const user = await this.userRepository.getUserById(userId);
       return user;
     } catch (error) {
