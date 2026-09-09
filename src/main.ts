@@ -43,6 +43,7 @@ async function bootstrap() {
     'http://127.0.0.1:3000',
     'https://stockpro-delta.vercel.app',
     'https://back-spservice-production.up.railway.app',
+    "https://back-spservice.onrender.com",
     'capacitor-electron://localhost', 
     'https://localhost',  
      'https://spservices.localhost',          
