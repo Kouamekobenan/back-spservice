@@ -22,10 +22,46 @@ export class UserShopAccessRepository {
   }
 
   async findByShop(shopId: string) {
-    return this.prisma.userShopAccess.findMany({ where: { shopId } });
+    return this.prisma.userShopAccess.findMany({
+      where: { shopId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+            email: true,
+            phone: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: { assignedAt: 'desc' },
+    });
   }
 
   async findByUser(userId: string) {
-    return this.prisma.userShopAccess.findMany({ where: { userId } });
+    return this.prisma.userShopAccess.findMany({
+      where: { userId },
+      include: {
+        shop: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            currency: true,
+            logoUrl: true,
+            isActive: true,
+            shopType: true,
+            shopTypeLabel: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { assignedAt: 'desc' },
+    });
   }
 }

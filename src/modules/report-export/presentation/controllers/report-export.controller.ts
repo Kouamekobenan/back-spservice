@@ -2,11 +2,19 @@ import { Controller, Get, Query, Res, UsePipes, ValidationPipe, HttpCode, HttpSt
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { ExportQueryDto, StockExportQueryDto } from '../../application/dtos/export-query.dto.js';
 import {
+  ProductsSummaryQueryDto,
+  ProductsSummaryExportQueryDto,
+  ProductsSummaryResponseDto,
+} from '../../application/dtos/products-summary-query.dto.js';
+import {
   ExportSalesUseCase,
   ExportFinancialUseCase,
   ExportStockUseCase,
   ExportDebtsUseCase,
 } from '../../application/usecases/export-sales.usecase.js';
+import { GetProductsSalesSummaryUseCase } from '../../application/usecases/get-products-sales-summary.usecase.js';
+import { ExportProductsSalesSummaryUseCase } from '../../application/usecases/export-products-sales-summary.usecase.js';
+import { ExportLossesUseCase } from '../../application/usecases/export-losses.usecase.js';
 
 @ApiTags('Reports — Export')
 @ApiBearerAuth()
@@ -14,10 +22,13 @@ import {
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class ReportExportController {
   constructor(
-    private readonly exportSales:     ExportSalesUseCase,
-    private readonly exportFinancial: ExportFinancialUseCase,
-    private readonly exportStock:     ExportStockUseCase,
-    private readonly exportDebts:     ExportDebtsUseCase,
+    private readonly exportSales:           ExportSalesUseCase,
+    private readonly exportFinancial:       ExportFinancialUseCase,
+    private readonly exportStock:           ExportStockUseCase,
+    private readonly exportDebts:           ExportDebtsUseCase,
+    private readonly getProductsSummary:    GetProductsSalesSummaryUseCase,
+    private readonly exportProductsSummary: ExportProductsSalesSummaryUseCase,
+    private readonly exportLosses:          ExportLossesUseCase,
   ) {}
 
   // ── GET /reports/sales/export ────────────────────────────────────────
@@ -98,6 +109,73 @@ export class ReportExportController {
     @Res() res: any,
   ) {
     const result = await this.exportDebts.execute({ shopId, format });
+    sendFile(res, result);
+  }
+
+  // ── GET /reports/sales/products-summary ─────────────────────────────
+
+  @Get('sales/products-summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rapport récapitulatif des ventes par produit (JSON)',
+    description:
+      'Retourne la liste agrégée des produits vendus sur une période avec quantité totale vendue, CA, coût d\'achat (COGS), marge brute et taux de marge.',
+  })
+  @ApiResponse({ status: 200, type: ProductsSummaryResponseDto, description: 'Statistiques agrégées par produit' })
+  async getProductsSalesSummary(@Query() query: ProductsSummaryQueryDto): Promise<ProductsSummaryResponseDto> {
+    return await this.getProductsSummary.execute(query);
+  }
+
+  // ── GET /reports/sales/products-summary/export ──────────────────────
+
+  @Get('sales/products-summary/export')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exporter le rapport récapitulatif des ventes par produit (PDF ou Excel)',
+    description: 'Exporte l\'ensemble des produits vendus sur la période au format PDF ou Excel.',
+  })
+  @ApiResponse({ status: 200, description: 'Fichier PDF ou XLSX.' })
+  async exportProductsSalesSummary(@Query() query: ProductsSummaryExportQueryDto, @Res() res: any) {
+    const result = await this.exportProductsSummary.execute(query);
+    sendFile(res, result);
+  }
+
+  // ── GET /reports/losses ──────────────────────────────────────────────
+
+  @Get('losses')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rapport des pertes et démarques (JSON)',
+    description:
+      'Retourne la liste des articles mis au rebut ou déclarés perdus sur une période, groupés par motif de perte.',
+  })
+  @ApiQuery({ name: 'shopId',   required: true,  description: 'ID de la boutique' })
+  @ApiQuery({ name: 'fromDate', required: false, description: 'Date de début ISO 8601' })
+  @ApiQuery({ name: 'toDate',   required: false, description: 'Date de fin ISO 8601' })
+  @ApiResponse({ status: 200, description: 'Données détaillées des pertes et démarques.' })
+  async getLossesReport(
+    @Query('shopId') shopId: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return await this.exportLosses.getData(shopId, fromDate, toDate);
+  }
+
+  // ── GET /reports/losses/export ───────────────────────────────────────
+
+  @Get('losses/export')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exporter le rapport des pertes et démarques (PDF ou Excel)',
+    description: 'Génère un fichier téléchargeable PDF ou Excel récapitulant les pertes de stock.',
+  })
+  @ApiQuery({ name: 'shopId',   required: true,  description: 'ID de la boutique' })
+  @ApiQuery({ name: 'format',   required: true,  enum: ['pdf', 'xlsx'] })
+  @ApiQuery({ name: 'fromDate', required: false })
+  @ApiQuery({ name: 'toDate',   required: false })
+  @ApiResponse({ status: 200, description: 'Fichier PDF ou XLSX.' })
+  async exportLossesReport(@Query() query: ExportQueryDto, @Res() res: any) {
+    const result = await this.exportLosses.execute(query);
     sendFile(res, result);
   }
 }

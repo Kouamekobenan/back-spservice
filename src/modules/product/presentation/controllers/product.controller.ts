@@ -34,6 +34,7 @@ import { GetProductByBarcodeUseCase } from '../../application/usecases/get-produ
 import { UpdateProductUseCase } from '../../application/usecases/update-product.usecase.js';
 import { DeleteProductUseCase } from '../../application/usecases/delete-product.usecase.js';
 import { GetStockAlertsUseCase } from '../../application/usecases/get-stock-alerts.usecase.js';
+import { GenerateBarcodeUseCase } from '../../application/usecases/generate-barcode.usecase.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 
 @ApiTags('products')
@@ -47,6 +48,7 @@ export class ProductController {
     private readonly getAllProductsUseCase: GetAllProductsUseCase,
     private readonly getProductByIdUseCase: GetProductByIdUseCase,
     private readonly getProductByBarcodeUseCase: GetProductByBarcodeUseCase,
+    private readonly generateBarcodeUseCase: GenerateBarcodeUseCase,
     private readonly updateProductUseCase: UpdateProductUseCase,
     private readonly deleteProductUseCase: DeleteProductUseCase,
     private readonly getStockAlertsUseCase: GetStockAlertsUseCase,
@@ -101,6 +103,18 @@ export class ProductController {
   ): Promise<ProductResponseDto> {
     this.logger.log(`Lookup barcode: ${code}`);
     return await this.getProductByBarcodeUseCase.execute(code, shopId);
+  }
+
+  @Public()
+  @Get('generate-barcode/:shopId')
+  @ApiOperation({ summary: 'Générer un code-barres unique pour une boutique' })
+  @ApiParam({ name: 'shopId', description: 'ID de la boutique' })
+  @ApiOkResponse({ description: 'Code-barres unique généré' })
+  async generateBarcode(
+    @Param('shopId') shopId: string,
+  ): Promise<{ barcode: string }> {
+    this.logger.log(`Génération d'un code-barres unique pour la boutique: ${shopId}`);
+    return await this.generateBarcodeUseCase.execute(shopId);
   }
 
   @Public()

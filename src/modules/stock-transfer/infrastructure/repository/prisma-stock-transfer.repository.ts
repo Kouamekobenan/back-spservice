@@ -150,9 +150,24 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
             }
 
             if (!targetProduct) {
-              // Option: Auto-create product in target shop? 
-              // For safety, we throw error asking to create it first, or we clone it.
-              // Let's clone it for a better UX.
+              // Récupérer la catégorie correspondante dans la boutique de destination si existante
+              let targetCategoryId: string | null = null;
+              if (sourceProduct.categoryId) {
+                const sourceCat = await tx.category.findUnique({
+                  where: { id: sourceProduct.categoryId },
+                });
+                if (sourceCat) {
+                  const matchingCat = await tx.category.findFirst({
+                    where: {
+                      shopId: transfer.toShopId,
+                      name: { equals: sourceCat.name, mode: 'insensitive' },
+                    },
+                  });
+                  targetCategoryId = matchingCat?.id ?? null;
+                }
+              }
+
+              // Cloner le produit dans la boutique cible
               targetProduct = await tx.product.create({
                 data: {
                   name: sourceProduct.name,
@@ -164,11 +179,19 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
                   wholeSalePrice: sourceProduct.wholeSalePrice,
                   minStockQty: sourceProduct.minStockQty,
                   maxStockQty: sourceProduct.maxStockQty,
-                  categoryId: sourceProduct.categoryId,
+                  categoryId: targetCategoryId,
                   unitId: sourceProduct.unitId,
                   shopId: transfer.toShopId,
                   stockQty: 0,
-                }
+                  expiryDate: (sourceProduct as any).expiryDate ?? null,
+                  isActive: true,
+                },
+              });
+            } else if (!targetProduct.isActive) {
+              // Réactiver le produit s'il avait été désactivé
+              await tx.product.update({
+                where: { id: targetProduct.id },
+                data: { isActive: true },
               });
             }
 

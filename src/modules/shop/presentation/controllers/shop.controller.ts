@@ -12,6 +12,7 @@ import {
   Logger,
   HttpStatus,
   HttpCode,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -82,9 +83,13 @@ export class ShopController {
   })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   @ApiResponse({ status: 409, description: 'Boutique déjà existante' })
-  async createShop(@Body() createShopDto: CreateShopDto): Promise<Shop> {
-    this.logger.log(`Création d'une nouvelle boutique: ${createShopDto.name}`);
-    return await this.createShopUseCase.execute(createShopDto);
+  async createShop(
+    @Body() createShopDto: CreateShopDto,
+    @Req() req?: any,
+  ): Promise<Shop> {
+    const creatorId = createShopDto.userId || req?.user?.userId;
+    this.logger.log(`Création d'une nouvelle boutique: ${createShopDto.name}${creatorId ? ` (par ${creatorId})` : ''}`);
+    return await this.createShopUseCase.execute(createShopDto, creatorId);
   }
 
   // ─── PAGINATE ─────────────────────────────────────────────────────

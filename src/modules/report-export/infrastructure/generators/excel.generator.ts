@@ -5,7 +5,9 @@ import type {
   FinancialReportData,
   StockReportData,
   DebtsReportData,
+  LossesReportData,
 } from '../repository/export.repository.js';
+import type { ProductsSummaryResponseDto } from '../../application/dtos/products-summary-query.dto.js';
 
 const PAYMENT_LABELS: Record<string, string> = {
   CASH: 'Espèces', MOBILE_MONEY: 'Mobile Money', BANK_CARD: 'Carte bancaire',
@@ -344,4 +346,228 @@ export class ExcelGenerator {
     await buildDebtsSheet(wb, data);
     return this.toBuffer(wb);
   }
+
+  async generateProductsSalesSummary(data: ProductsSummaryResponseDto): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SP Service';
+    wb.created = new Date();
+    await buildProductsSalesSheet(wb, data);
+    return this.toBuffer(wb);
+  }
+
+  async generateLosses(data: LossesReportData): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SP Service';
+    wb.created = new Date();
+    await buildLossesSheet(wb, data);
+    return this.toBuffer(wb);
+  }
+}
+
+// ── Rapport Récapitulatif Ventes par Produit ─────────────────────────────────
+
+async function buildProductsSalesSheet(wb: ExcelJS.Workbook, data: ProductsSummaryResponseDto) {
+  const sheet = wb.addWorksheet('Ventes par Produit', { properties: { tabColor: { argb: 'FF10B981' } } });
+  const cur = data.shop.currency;
+
+  const fromStr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(data.period.from));
+  const toStr   = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(data.period.to));
+
+  let row = addTitleBlock(sheet, 'RÉCAPITULATIF DES VENTES PAR PRODUIT',
+    `Période du ${fromStr} au ${toStr}`,
+    data.shop.name);
+
+  // Bloc KPIs
+  const kpiData = [
+    ['Chiffre d\'Affaires total', data.summary.totalRevenue,     ACCENT_FILL],
+    ['Coût d\'Achat total (COGS)', data.summary.totalCost,       null],
+    ['Bénéfice Brut total',        data.summary.totalGrossProfit, GREEN_FILL],
+    ['Taux de Marge Moyen',        `${data.summary.averageMarginRate}%`, null],
+    ['Articles vendus (volume)',   data.summary.totalUnitsSold,   null],
+    ['Produits distincts vendus',  data.summary.totalProductsSold, null],
+  ] as const;
+
+  for (const [label, value, fill] of kpiData) {
+    const r = sheet.getRow(row++);
+    r.values = ['', label, value];
+    if (typeof value === 'number') {
+      r.getCell(3).numFmt = `#,##0 "${cur}"`;
+    }
+    r.getCell(3).font = { bold: true };
+    if (fill) {
+      r.getCell(2).fill = fill;
+      r.getCell(3).fill = fill;
+    }
+    r.eachCell((c, col) => { if (col > 1) c.border = THIN_BORDER; });
+  }
+  row++;
+
+  // En-têtes du tableau
+  setHeaderRow(sheet, row++,
+    ['Rang', 'Produit', 'Code-barres', 'SKU', 'Catégorie', 'Stock actuel', 'Prix d\'achat', 'Prix de vente', 'Quantité vendue', 'CA Réalisé', 'Coût total', 'Bénéfice Brut', 'Marge %', 'Nb ventes'],
+    [4, 8, 30, 16, 16, 18, 14, 14, 14, 16, 18, 18, 16, 12, 12]);
+
+  data.items.forEach((p, index) => {
+    const r = sheet.getRow(row++);
+    r.values = [
+      '',
+      index + 1,
+      p.productName,
+      p.barcode ?? '—',
+      p.sku ?? '—',
+      p.categoryName ?? '—',
+      p.currentStock,
+      p.buyingPrice,
+      p.sellingPrice,
+      p.unitsSold,
+      p.revenue,
+      p.cogs,
+      p.grossProfit,
+      `${p.marginRate}%`,
+      p.transactionCount,
+    ];
+
+    r.getCell(7).numFmt = '0.000'; // currentStock
+    r.getCell(8).numFmt = `#,##0 "${cur}"`;
+    r.getCell(9).numFmt = `#,##0 "${cur}"`;
+    r.getCell(10).numFmt = '0.000'; // unitsSold
+    r.getCell(11).numFmt = `#,##0 "${cur}"`;
+    r.getCell(12).numFmt = `#,##0 "${cur}"`;
+    r.getCell(13).numFmt = `#,##0 "${cur}"`;
+
+    if (p.grossProfit > 0) {
+      r.getCell(13).font = { color: { argb: 'FF16A34A' }, bold: true };
+    } else if (p.grossProfit < 0) {
+      r.getCell(13).font = { color: { argb: 'FFDC2626' }, bold: true };
+    }
+
+    r.eachCell((c, col) => { if (col > 1) c.border = THIN_BORDER; });
+  });
+
+  // Ligne de total
+  const tot = sheet.getRow(row);
+  tot.values = [
+    '',
+    'TOTAL',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    data.summary.totalUnitsSold,
+    data.summary.totalRevenue,
+    data.summary.totalCost,
+    data.summary.totalGrossProfit,
+    `${data.summary.averageMarginRate}%`,
+    '',
+  ];
+  [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((col) => {
+    tot.getCell(col).fill = TOTAL_FILL;
+    tot.getCell(col).font = TOTAL_FONT;
+  });
+  tot.getCell(10).numFmt = '0.000';
+  tot.getCell(11).numFmt = `#,##0 "${cur}"`;
+  tot.getCell(12).numFmt = `#,##0 "${cur}"`;
+  tot.getCell(13).numFmt = `#,##0 "${cur}"`;
+}
+
+// ── Rapport Pertes et Démarques ──────────────────────────────────────────────
+
+async function buildLossesSheet(wb: ExcelJS.Workbook, data: LossesReportData) {
+  const sheet = wb.addWorksheet('Pertes et Démarques', { properties: { tabColor: { argb: 'FFEF4444' } } });
+  const cur = data.shop.currency;
+
+  const fromStr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(data.from));
+  const toStr   = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(data.to));
+
+  let row = addTitleBlock(sheet, 'RAPPORT DES PERTES ET DÉMARQUES',
+    `Période du ${fromStr} au ${toStr}`,
+    data.shop.name);
+
+  // Bloc KPIs
+  const kpiData = [
+    ['Valeur totale des pertes', data.summary.totalLossValue, RED_FILL],
+    ['Volume d\'articles perdus', data.summary.totalUnitsLost, null],
+    ['Nombre d\'opérations',      data.summary.totalMovements, null],
+  ] as const;
+
+  for (const [label, value, fill] of kpiData) {
+    const r = sheet.getRow(row++);
+    r.values = ['', label, value];
+    if (typeof value === 'number' && label.includes('Valeur')) {
+      r.getCell(3).numFmt = `#,##0 "${cur}"`;
+    }
+    r.getCell(3).font = { bold: true };
+    if (fill) {
+      r.getCell(2).fill = fill;
+      r.getCell(3).fill = fill;
+    }
+    r.eachCell((c, col) => { if (col > 1) c.border = THIN_BORDER; });
+  }
+  row++;
+
+  // Répartition par motif
+  if (data.summary.byReason.length > 0) {
+    setHeaderRow(sheet, row++, ['Motif de perte', 'Nombre d\'incidents', 'Montant'], [4, 25, 20, 20]);
+    for (const b of data.summary.byReason) {
+      const r = sheet.getRow(row++);
+      r.values = ['', b.reason, b.count, b.amount];
+      r.getCell(4).numFmt = `#,##0 "${cur}"`;
+      r.eachCell((c, col) => { if (col > 1) c.border = THIN_BORDER; });
+    }
+    row++;
+  }
+
+  // Tableau détaillé
+  setHeaderRow(sheet, row++,
+    ['Date', 'Produit', 'Code-barres', 'SKU', 'Motif', 'Quantité perdue', 'Coût d\'achat', 'Perte totale', 'Agent / Auteur', 'Notes'],
+    [4, 18, 30, 16, 16, 16, 16, 16, 18, 22, 35]);
+
+  data.losses.forEach((l) => {
+    const r = sheet.getRow(row++);
+    r.values = [
+      '',
+      new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(l.date)),
+      l.productName,
+      l.barcode ?? '—',
+      l.sku ?? '—',
+      l.reason,
+      l.quantity,
+      l.unitCost,
+      l.totalLoss,
+      l.userName,
+      l.notes ?? '—',
+    ];
+
+    r.getCell(7).numFmt = '0.000'; // quantity
+    r.getCell(8).numFmt = `#,##0 "${cur}"`;
+    r.getCell(9).numFmt = `#,##0 "${cur}"`;
+    r.getCell(9).font = { color: { argb: 'FFDC2626' }, bold: true };
+
+    r.eachCell((c, col) => { if (col > 1) c.border = THIN_BORDER; });
+  });
+
+  // Ligne de total
+  const tot = sheet.getRow(row);
+  tot.values = [
+    '',
+    'TOTAL',
+    '',
+    '',
+    '',
+    '',
+    data.summary.totalUnitsLost,
+    '',
+    data.summary.totalLossValue,
+    '',
+    '',
+  ];
+  [2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach((col) => {
+    tot.getCell(col).fill = TOTAL_FILL;
+    tot.getCell(col).font = TOTAL_FONT;
+  });
+  tot.getCell(7).numFmt = '0.000';
+  tot.getCell(9).numFmt = `#,##0 "${cur}"`;
 }

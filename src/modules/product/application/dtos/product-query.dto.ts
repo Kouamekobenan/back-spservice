@@ -29,6 +29,18 @@ export class ProductQueryDto {
   @Type(() => Boolean)
   isLowStock?: boolean;
 
+  @ApiProperty({ required: false, description: 'Filtrer les produits périmés' })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isExpired?: boolean;
+
+  @ApiProperty({ required: false, description: 'Filtrer les produits périmant bientôt (sous 30 jours)' })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isExpiringSoon?: boolean;
+
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()
   @Type(() => Number)

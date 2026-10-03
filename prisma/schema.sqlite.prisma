@@ -255,6 +255,7 @@ model Product {
 
   syncStatus SyncStatus @default(SYNCED)
   localId    String?
+  expiryDate DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,6 +264,7 @@ model Product {
   @@unique([sku, shopId])
   @@index([shopId])
   @@index([shopId, isActive])
+  @@index([shopId, expiryDate])
   @@map("products")
 }
 

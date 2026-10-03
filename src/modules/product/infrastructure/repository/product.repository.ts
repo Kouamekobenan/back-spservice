@@ -51,7 +51,7 @@ export class ProductRepository implements IProductRepository {
 
   async findAll(query: ProductQueryDto): Promise<PaginatedResponseRepository<Product>> {
     try {
-      const { page = 1, limit = 200, search, barcode, shopId, categoryId, isLowStock } = query;
+      const { page = 1, limit = 200, search, barcode, shopId, categoryId, isLowStock, isExpired, isExpiringSoon } = query;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ProductWhereInput = { isActive: true };
@@ -74,6 +74,22 @@ export class ProductRepository implements IProductRepository {
         where.stockQty = {
           lte: this.prisma.product.fields.minStockQty,
         };
+      }
+
+      if (isExpired) {
+        where.expiryDate = {
+          lte: new Date(),
+        };
+        where.stockQty = { gt: 0 };
+      } else if (isExpiringSoon) {
+        const now = new Date();
+        const in30Days = new Date();
+        in30Days.setDate(now.getDate() + 30);
+        where.expiryDate = {
+          gte: now,
+          lte: in30Days,
+        };
+        where.stockQty = { gt: 0 };
       }
 
       const [products, total] = await Promise.all([
@@ -170,26 +186,27 @@ export class ProductRepository implements IProductRepository {
     });
     return products.map((p) => this.mapper.toDomain(p));
   }
-async generateUniqueBarcode(shopId: string): Promise<string> {
-  let isUnique = false;
-  let barcode = '';
-  
-  while (!isUnique) {
-    // Générer un code-barres aléatoire (ex: 12 chiffres)
-    barcode = Math.random().toString(36).substring(2, 14).toUpperCase();
+  async generateUniqueBarcode(shopId: string): Promise<string> {
+    let isUnique = false;
+    let barcode = '';
     
-    // Vérifier si ce code-barres existe déjà dans la boutique
-    const existingProduct = await this.prisma.product.findFirst({
-      where: { barcode, shopId }
-    });
-    
-    if (!existingProduct) {
-      isUnique = true;
+    while (!isUnique) {
+      // Préfixe 200 (format interne standard magasin GS1) + 9 chiffres aléatoires
+      const randomDigits = Math.floor(100000000 + Math.random() * 900000000).toString();
+      barcode = `200${randomDigits}`;
+      
+      // Vérifier si ce code-barres existe déjà dans la boutique
+      const existingProduct = await this.prisma.product.findFirst({
+        where: { barcode, shopId },
+      });
+      
+      if (!existingProduct) {
+        isUnique = true;
+      }
     }
-  }
-  
-  return barcode;
-} 
+    
+    return barcode;
+  } 
   async updateStock(id: string, quantity: number): Promise<Product> {
     const product = await this.prisma.product.update({
       where: { id },
