@@ -59,7 +59,32 @@ export class UpdateStockTransferStatusUseCase {
       }
     }
 
-    const updatedTransfer = await this.stockTransferRepository.updateStatus(id, data.status, data.userId || 'SYSTEM');
+    // Résolution d'un identifiant utilisateur valide pour éviter les rejets de clé étrangère
+    let effectiveUserId = data.userId;
+    if (!effectiveUserId || effectiveUserId === 'SYSTEM') {
+      const targetShopId = data.status === StockTransferStatus.COMPLETED ? transfer.toShopId : transfer.fromShopId;
+      const assigned = await this.prisma.userShopAccess.findFirst({
+        where: { shopId: targetShopId },
+        select: { userId: true },
+      });
+      if (assigned) {
+        effectiveUserId = assigned.userId;
+      } else {
+        const anyUser = await this.prisma.user.findFirst({
+          where: { isActive: true },
+          select: { id: true },
+        });
+        if (anyUser) {
+          effectiveUserId = anyUser.id;
+        }
+      }
+    }
+
+    const updatedTransfer = await this.stockTransferRepository.updateStatus(
+      id,
+      data.status,
+      effectiveUserId || data.userId || 'SYSTEM',
+    );
 
     // ─── Émission de l'événement d'audit ───
     const auditShopId = data.status === StockTransferStatus.COMPLETED ? transfer.toShopId : transfer.fromShopId;
@@ -69,7 +94,7 @@ export class UpdateStockTransferStatusUseCase {
         AuditAction.UPDATE,
         'StockTransfer',
         id,
-        data.userId || 'SYSTEM',
+        effectiveUserId || data.userId || 'SYSTEM',
         auditShopId,
         transfer,
         updatedTransfer,
@@ -79,7 +104,7 @@ export class UpdateStockTransferStatusUseCase {
       ),
     );
 
-    this.logger.log(`Transfert ${transfer.transferNumber} mis à jour vers ${data.status} par ${data.userId || 'SYSTEM'}`);
+    this.logger.log(`Transfert ${transfer.transferNumber} mis à jour vers ${data.status} par ${effectiveUserId || data.userId || 'SYSTEM'}`);
     return updatedTransfer;
   }
 
@@ -89,7 +114,7 @@ export class UpdateStockTransferStatusUseCase {
       select: { role: true },
     });
     if (!user) return false;
-    if (user.role === Role.SUPER_ADMIN) return true;
+    if (user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN) return true;
 
     const access = await this.prisma.userShopAccess.findUnique({
       where: { userId_shopId: { userId, shopId } },

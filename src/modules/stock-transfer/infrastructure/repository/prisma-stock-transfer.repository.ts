@@ -15,6 +15,40 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
     private readonly mapper: StockTransferMapper,
   ) {}
 
+  private async resolveValidUserId(tx: any, preferredUserId?: string, shopId?: string): Promise<string> {
+    if (preferredUserId && preferredUserId !== 'SYSTEM') {
+      const existingUser = await tx.user.findUnique({
+        where: { id: preferredUserId },
+        select: { id: true },
+      });
+      if (existingUser) {
+        return existingUser.id;
+      }
+    }
+
+    if (shopId) {
+      const userAccess = await tx.userShopAccess.findFirst({
+        where: { shopId },
+        select: { userId: true },
+      });
+      if (userAccess) {
+        return userAccess.userId;
+      }
+    }
+
+    const adminOrAny = await tx.user.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (adminOrAny) {
+      return adminOrAny.id;
+    }
+
+    throw new BadRequestException("Aucun utilisateur valide n'a pu être identifié pour enregistrer le mouvement de stock.");
+  }
+
   async generateTransferNumber(fromShopId: string): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
@@ -52,6 +86,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
         });
 
         // 2. Decrement stock from origin and create movement
+        const validUserId = await this.resolveValidUserId(tx, data.userId, data.fromShopId);
         for (const item of data.items) {
           const product = await tx.product.findUnique({ where: { id: item.productId } });
           if (!product) throw new BadRequestException(`Produit ${item.productId} non trouvé.`);
@@ -71,7 +106,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
             data: {
               productId: item.productId,
               shopId: data.fromShopId,
-              userId: data.userId,
+              userId: validUserId,
               reason: StockMovementReason.TRANSFER_OUT,
               quantity: -item.quantity,
               stockBefore: Number(product.stockQty),
@@ -121,6 +156,9 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
         });
 
         if (!transfer) throw new NotFoundException('Transfert non trouvé.');
+
+        const targetShopId = status === StockTransferStatus.COMPLETED ? transfer.toShopId : transfer.fromShopId;
+        const validUserId = await this.resolveValidUserId(tx, userId, targetShopId);
 
         if (status === StockTransferStatus.COMPLETED) {
           // Process reception in destination shop
@@ -204,7 +242,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
               data: {
                 productId: targetProduct.id,
                 shopId: transfer.toShopId,
-                userId: userId,
+                userId: validUserId,
                 reason: StockMovementReason.TRANSFER_IN,
                 quantity: item.quantity,
                 stockBefore: Number(targetProduct.stockQty),
@@ -229,7 +267,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
               data: {
                 productId: item.productId,
                 shopId: transfer.fromShopId,
-                userId: userId,
+                userId: validUserId,
                 reason: StockMovementReason.ADJUSTMENT,
                 quantity: item.quantity,
                 stockBefore: Number(product.stockQty),

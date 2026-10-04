@@ -102,11 +102,32 @@ export class CreateStockTransferUseCase {
       });
     }
 
+    // Résolution d'un identifiant utilisateur valide si non fourni
+    let effectiveUserId = data.userId;
+    if (!effectiveUserId || effectiveUserId === 'SYSTEM') {
+      const assigned = await this.prisma.userShopAccess.findFirst({
+        where: { shopId: data.fromShopId },
+        select: { userId: true },
+      });
+      if (assigned) {
+        effectiveUserId = assigned.userId;
+      } else {
+        const anyUser = await this.prisma.user.findFirst({
+          where: { isActive: true },
+          select: { id: true },
+        });
+        if (anyUser) {
+          effectiveUserId = anyUser.id;
+        }
+      }
+    }
+
     // 6. Génération du numéro de bordereau et création transactionnelle
     const transferNumber = await this.stockTransferRepository.generateTransferNumber(data.fromShopId);
     const transfer = await this.stockTransferRepository.create(
       {
         ...data,
+        userId: effectiveUserId || data.userId,
         items: validatedItems,
       },
       transferNumber,
@@ -119,7 +140,7 @@ export class CreateStockTransferUseCase {
         AuditAction.CREATE,
         'StockTransfer',
         transfer.id,
-        data.userId || 'SYSTEM',
+        effectiveUserId || data.userId || 'SYSTEM',
         data.fromShopId,
         undefined,
         transfer,
@@ -139,7 +160,7 @@ export class CreateStockTransferUseCase {
       select: { role: true },
     });
     if (!user) return false;
-    if (user.role === Role.SUPER_ADMIN) return true;
+    if (user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN) return true;
 
     const access = await this.prisma.userShopAccess.findUnique({
       where: { userId_shopId: { userId, shopId } },

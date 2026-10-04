@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Param, Put, Query, Req, HttpCode, HttpStatus, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Query, Req, HttpCode, HttpStatus, Logger, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { CreateStockTransferUseCase } from '../application/usecases/create-stock-transfer.usecase.js';
 import { UpdateStockTransferStatusUseCase } from '../application/usecases/update-stock-transfer-status.usecase.js';
 import { FindAllStockTransfersUseCase } from '../application/usecases/find-all-stock-transfers.usecase.js';
@@ -10,6 +11,7 @@ import { FilterStockTransferDto } from '../application/dtos/filter-stock-transfe
 
 @ApiTags('Stock Transfers')
 @ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('stock-transfers')
 export class StockTransferController {
   private readonly logger = new Logger(StockTransferController.name);
@@ -21,6 +23,29 @@ export class StockTransferController {
     private readonly findByIdUseCase: FindStockTransferByIdUseCase,
   ) {}
 
+  private extractUserId(req: any, dtoUserId?: string): string | undefined {
+    if (dtoUserId) return dtoUserId;
+    if (req?.user?.userId) return req.user.userId;
+    if (req?.user?.id) return req.user.id;
+    if (req?.user?.sub) return req.user.sub;
+
+    // Décoder le token JWT si présent dans l'en-tête Authorization
+    const authHeader = req?.headers?.authorization;
+    if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const payloadBase64 = token.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
+          return payload?.sub || payload?.userId || payload?.id;
+        }
+      } catch (err) {
+        // Ignorer l'erreur de décodage
+      }
+    }
+    return undefined;
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -31,7 +56,7 @@ export class StockTransferController {
   @ApiResponse({ status: 400, description: 'Données invalides, boutiques inactives ou stock insuffisant.' })
   @ApiResponse({ status: 403, description: 'Droits insuffisants pour initier le transfert.' })
   async create(@Body() data: CreateStockTransferDto, @Req() req: any) {
-    const userId = req?.user?.userId || data.userId;
+    const userId = this.extractUserId(req, data.userId);
     this.logger.log(`Création d'un transfert de ${data.fromShopId} vers ${data.toShopId} par ${userId || 'anonyme'}`);
     return await this.createUseCase.execute({ ...data, userId });
   }
@@ -67,7 +92,7 @@ export class StockTransferController {
     @Body() data: UpdateStockTransferStatusDto,
     @Req() req: any,
   ) {
-    const userId = req?.user?.userId || data.userId;
+    const userId = this.extractUserId(req, data.userId);
     this.logger.log(`Mise à jour du statut du transfert ${id} vers ${data.status} par ${userId || 'anonyme'}`);
     return await this.updateStatusUseCase.execute(id, { ...data, userId });
   }
