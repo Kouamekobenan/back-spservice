@@ -17,6 +17,7 @@ export class Product {
     private readonly shopId: string,
     private readonly categoryId: string | null,
     private readonly unitId: string | null,
+    private readonly expiryDate: Date | null,
     private readonly createdAt: Date,
     private readonly updatedAt: Date,
   ) {}
@@ -38,6 +39,7 @@ export class Product {
   getShopId(): string { return this.shopId; }
   getCategoryId(): string | null { return this.categoryId; }
   getUnitId(): string | null { return this.unitId; }
+  getExpiryDate(): Date | null { return this.expiryDate; }
   getCreatedAt(): Date { return this.createdAt; }
   getUpdatedAt(): Date { return this.updatedAt; }
 
@@ -48,5 +50,18 @@ export class Product {
 
   getProfitMargin(): number {
     return this.sellingPrice - this.buyingPrice;
+  }
+
+  isExpired(): boolean {
+    if (!this.expiryDate) return false;
+    return new Date() > this.expiryDate;
+  }
+
+  isExpiringSoon(days: number = 30): boolean {
+    if (!this.expiryDate) return false;
+    const now = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(now.getDate() + days);
+    return this.expiryDate >= now && this.expiryDate <= futureDate;
   }
 }

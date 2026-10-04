@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 import { StockTransferStatus } from '../../domain/entities/stock-transfer.entity.js';
 
 export class UpdateStockTransferStatusDto {
@@ -8,8 +8,8 @@ export class UpdateStockTransferStatusDto {
   @IsNotEmpty()
   status: StockTransferStatus;
 
-  @ApiProperty({ example: 'user-uuid-123', description: 'ID de l\'utilisateur validant/annulant le transfert' })
+  @ApiProperty({ example: 'user-uuid-123', description: "ID de l'utilisateur validant/annulant le transfert (déduit du token JWT si absent)", required: false })
   @IsUUID()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string;
 }

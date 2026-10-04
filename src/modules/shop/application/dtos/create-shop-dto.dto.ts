@@ -6,6 +6,7 @@ import {
   IsEmail,
   MaxLength,
   MinLength,
+  IsUUID,
 } from 'class-validator';
 import { ShopType } from '../../domain/enums/shopType-enum.enum';
 
@@ -100,4 +101,13 @@ export class CreateShopDto {
     description: 'Libellé du type de la boutique',
   })
   shopTypeLabel?: string;
+
+  @ApiProperty({
+    example: 'b2c3d4e5-f6g7-8901-bcde-fg2345678901',
+    description: "UUID de l'utilisateur créateur (auquel attribuer l'accès admin automatiquement)",
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID('4', { message: "L'identifiant de l'utilisateur doit être un UUID valide" })
+  userId?: string;
 }

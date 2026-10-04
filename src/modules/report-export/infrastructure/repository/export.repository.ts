@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
+import { StockMovementReason } from '@prisma/client';
 
 export interface ShopInfo {
   name: string;
@@ -93,6 +94,33 @@ export interface DebtsReportData {
   generatedAt: Date;
   summary: { totalCustomers: number; totalDebt: number; overLimitCount: number };
   customers: DebtRow[];
+}
+
+export interface LossRow {
+  id: string;
+  date: Date;
+  productName: string;
+  sku: string | null;
+  barcode: string | null;
+  quantity: number;
+  unitCost: number;
+  totalLoss: number;
+  reason: string;
+  notes: string | null;
+  userName: string;
+}
+
+export interface LossesReportData {
+  shop: ShopInfo;
+  from: Date;
+  to: Date;
+  summary: {
+    totalLossValue: number;
+    totalUnitsLost: number;
+    totalMovements: number;
+    byReason: Array<{ reason: string; amount: number; count: number }>;
+  };
+  losses: LossRow[];
 }
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -331,6 +359,84 @@ export class ExportRepository {
         overLimitCount: rows.filter((r) => r.isOverLimit).length,
       },
       customers: rows,
+    };
+  }
+
+  // ── Rapport des pertes et démarques ────────────────────────────────────
+
+  async getLossesReportData(shopId: string, from: Date, to: Date): Promise<LossesReportData> {
+    const shop = await this.getShopInfo(shopId);
+
+    const movements = await this.prisma.stockMovement.findMany({
+      where: {
+        shopId,
+        reason: StockMovementReason.LOSS,
+        createdAt: { gte: from, lte: to },
+      },
+      include: {
+        product: { select: { name: true, sku: true, barcode: true, buyingPrice: true } },
+        user:    { select: { name: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    const rows: LossRow[] = movements.map((m) => {
+      const qty = Number(m.quantity);
+      const cost = m.unitCost ? Number(m.unitCost) : Number(m.product.buyingPrice);
+      const lossVal = Math.round(qty * cost * 100) / 100;
+
+      // Extraire le motif détaillé depuis les notes (ex: [Mise au rebut - EXPIRED])
+      let detailedReason = 'PERTE';
+      if (m.notes && m.notes.includes('[Mise au rebut - ')) {
+        const match = m.notes.match(/\[Mise au rebut - ([A-Z_]+)\]/);
+        if (match) detailedReason = match[1];
+      }
+
+      return {
+        id:          m.id,
+        date:        m.createdAt,
+        productName: m.product.name,
+        sku:         m.product.sku,
+        barcode:     m.product.barcode,
+        quantity:    qty,
+        unitCost:    cost,
+        totalLoss:   lossVal,
+        reason:      detailedReason,
+        notes:       m.notes,
+        userName:    m.user?.name ?? m.user?.username ?? 'Système',
+      };
+    });
+
+    const totalLossValue = Math.round(rows.reduce((a, r) => a + r.totalLoss, 0) * 100) / 100;
+    const totalUnitsLost = parseFloat(rows.reduce((a, r) => a + r.quantity, 0).toFixed(3));
+
+    // Répartition par motif de perte
+    const reasonMap = new Map<string, { amount: number; count: number }>();
+    for (const r of rows) {
+      const existing = reasonMap.get(r.reason) ?? { amount: 0, count: 0 };
+      existing.amount += r.totalLoss;
+      existing.count += 1;
+      reasonMap.set(r.reason, existing);
+    }
+
+    const byReason = Array.from(reasonMap.entries()).map(([reason, stats]) => ({
+      reason,
+      amount: Math.round(stats.amount * 100) / 100,
+      count: stats.count,
+    }));
+
+    return {
+      shop,
+      from,
+      to,
+      summary: {
+        totalLossValue,
+        totalUnitsLost,
+        totalMovements: rows.length,
+        byReason,
+      },
+      losses: rows,
     };
   }
 }

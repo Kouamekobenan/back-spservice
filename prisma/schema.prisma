@@ -121,6 +121,7 @@ model Product {
   unitId           String?
   syncStatus       SyncStatus          @default(SYNCED)
   localId          String?
+  expiryDate       DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   batches          ProductBatch[]
@@ -137,6 +138,7 @@ model Product {
   @@index([barcode])
   @@index([shopId])
   @@index([shopId, isActive])
+  @@index([shopId, expiryDate])
   @@map("products")
 }
 

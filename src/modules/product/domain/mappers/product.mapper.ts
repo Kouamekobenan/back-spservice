@@ -30,6 +30,7 @@ export class ProductMapper {
       hasBatchTracking: data.hasBatchTracking || false,
       metadata: data.metadata || null,
       isActive: data.isActive !== undefined ? data.isActive : true,
+      expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       shop: { connect: { id: data.shopId } },
     };
 
@@ -63,6 +64,7 @@ export class ProductMapper {
       prismaData.shopId,
       prismaData.categoryId,
       prismaData.unitId,
+      (prismaData as any).expiryDate ? new Date((prismaData as any).expiryDate) : null,
       prismaData.createdAt,
       prismaData.updatedAt,
     );
@@ -82,6 +84,7 @@ export class ProductMapper {
     if (data.hasBatchTracking !== undefined) updateData.hasBatchTracking = data.hasBatchTracking;
     if (data.metadata !== undefined) updateData.metadata = data.metadata;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.expiryDate !== undefined) updateData.expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
 
     if (data.categoryId !== undefined) {
       if (data.categoryId === null) updateData.category = { disconnect: true };
@@ -92,7 +95,6 @@ export class ProductMapper {
       if (data.unitId === null) updateData.unit = { disconnect: true };
       else updateData.unit = { connect: { id: data.unitId } };
     }
-
     return updateData;
   }
 }

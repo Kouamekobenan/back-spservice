@@ -8,6 +8,7 @@ import {
   IsUUID,
   IsObject,
   Min,
+  IsDateString,
 } from 'class-validator';
 
 export class CreateProductDto {
@@ -93,4 +94,9 @@ export class CreateProductDto {
   @IsOptional()
   @IsUUID()
   unitId?: string;
+
+  @ApiProperty({ example: '2026-12-31T00:00:00.000Z', description: 'Date de péremption', required: false })
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
 }

@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, Logger, HttpStatus, HttpCode } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiParam,
   ApiOkResponse,
+  ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Public } from '../../../../common/decorators/public.decorator.js';
@@ -14,10 +15,15 @@ import {
   StockValuationResponseDto,
   InventoryAlertsResponseDto,
 } from '../../application/dtos/inventory-response.dto.js';
+import {
+  AdjustDiscrepanciesDto,
+  AdjustDiscrepanciesResponseDto,
+} from '../../application/dtos/adjust-discrepancies.dto.js';
 import { GetInventoryOverviewUseCase } from '../../application/usecases/get-inventory-overview.usecase.js';
 import { GetTopProductsUseCase } from '../../application/usecases/get-top-products.usecase.js';
 import { GetStockValuationUseCase } from '../../application/usecases/get-stock-valuation.usecase.js';
 import { GetInventoryAlertsUseCase } from '../../application/usecases/get-inventory-alerts.usecase.js';
+import { AdjustDiscrepanciesUseCase } from '../../application/usecases/adjust-discrepancies.usecase.js';
 
 @ApiTags('inventory-dashboard')
 @ApiBearerAuth()
@@ -30,6 +36,7 @@ export class InventoryDashboardController {
     private readonly topProductsUseCase: GetTopProductsUseCase,
     private readonly valuationUseCase: GetStockValuationUseCase,
     private readonly alertsUseCase: GetInventoryAlertsUseCase,
+    private readonly adjustUseCase: AdjustDiscrepanciesUseCase,
   ) {}
 
   @Public()
@@ -101,5 +108,28 @@ export class InventoryDashboardController {
   ): Promise<InventoryAlertsResponseDto> {
     this.logger.log(`Inventory alerts — shop: ${shopId}, period: ${query.period}`);
     return this.alertsUseCase.execute(shopId, query);
+  }
+
+  @Post('adjust-discrepancies')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Ajuster les écarts d\'inventaire physique (régularisation de stock)',
+    description:
+      'Met à jour le stock physique, enregistre les mouvements ADJUSTMENT/LOSS et trace dans l\'AuditLog.',
+  })
+  @ApiResponse({
+    status: 200,
+    type: AdjustDiscrepanciesResponseDto,
+    description: 'Ajustement d\'inventaire validé.',
+  })
+  async adjustDiscrepancies(
+    @Body() dto: AdjustDiscrepanciesDto,
+    @Req() req: any,
+  ): Promise<AdjustDiscrepanciesResponseDto> {
+    const userId = dto.userId || req?.user?.userId || req?.user?.id;
+    return await this.adjustUseCase.execute({
+      ...dto,
+      userId,
+    });
   }
 }

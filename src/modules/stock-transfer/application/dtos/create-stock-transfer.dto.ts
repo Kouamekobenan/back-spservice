@@ -13,10 +13,11 @@ export class StockTransferItemDto {
   @IsPositive()
   quantity: number;
 
-  @ApiProperty({ example: 1500, description: 'Coût unitaire au moment du transfert' })
+  @ApiProperty({ example: 1500, description: 'Coût unitaire au moment du transfert (optionnel, prend buyingPrice par défaut)', required: false })
   @IsNumber()
   @IsPositive()
-  unitCost: number;
+  @IsOptional()
+  unitCost?: number;
 }
 
 export class CreateStockTransferDto {
@@ -30,10 +31,10 @@ export class CreateStockTransferDto {
   @IsNotEmpty()
   toShopId: string;
 
-  @ApiProperty({ example: 'user-uuid-123', description: 'ID de l\'utilisateur effectuant le transfert' })
+  @ApiProperty({ example: 'user-uuid-123', description: "ID de l'utilisateur effectuant le transfert (déduit du token JWT si absent)", required: false })
   @IsUUID()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string;
 
   @ApiProperty({ type: [StockTransferItemDto], description: 'Liste des produits à transférer' })
   @IsArray()

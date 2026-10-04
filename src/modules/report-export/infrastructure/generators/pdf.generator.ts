@@ -5,7 +5,9 @@ import type {
   FinancialReportData,
   StockReportData,
   DebtsReportData,
+  LossesReportData,
 } from '../repository/export.repository.js';
+import type { ProductsSummaryResponseDto } from '../../application/dtos/products-summary-query.dto.js';
 
 const fmt = (n: number, currency = 'XOF') =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
@@ -289,6 +291,126 @@ function buildDebtsHtml(data: DebtsReportData): string {
   </div></body></html>`;
 }
 
+// ── Rapport Ventes par Produit ───────────────────────────────────────────────
+
+function buildProductsSalesHtml(data: ProductsSummaryResponseDto): string {
+  const { shop, period, summary, items } = data;
+  const cur = shop.currency;
+  const periodLabel = `${fmtDay(new Date(period.from))} → ${fmtDay(new Date(period.to))}`;
+
+  const rows = items.map((p, index) => {
+    const profitClass = p.grossProfit >= 0 ? 'color: #16a34a;' : 'color: #dc2626;';
+    return `
+    <tr>
+      <td>${index + 1}</td>
+      <td class="text-bold">${p.productName}</td>
+      <td>${p.barcode ?? '—'}</td>
+      <td>${p.categoryName ?? '—'}</td>
+      <td class="text-right">${p.currentStock}</td>
+      <td class="text-right">${fmt(p.sellingPrice, cur)}</td>
+      <td class="text-right text-bold">${p.unitsSold}</td>
+      <td class="text-right text-bold">${fmt(p.revenue, cur)}</td>
+      <td class="text-right" style="${profitClass} font-weight: 600;">${fmt(p.grossProfit, cur)}</td>
+      <td class="text-right">${p.marginRate}%</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>${baseStyle}</style></head><body><div class="page">
+    ${header({ name: shop.name, address: null, phone: null }, 'RÉCAPITULATIF DES VENTES PAR PRODUIT', periodLabel)}
+    <div class="kpi-grid">
+      <div class="kpi accent"><div class="kpi-label">Chiffre d'affaires</div>
+        <div class="kpi-value">${fmt(summary.totalRevenue, cur)}</div></div>
+      <div class="kpi"><div class="kpi-label">Coût d'achat (COGS)</div>
+        <div class="kpi-value">${fmt(summary.totalCost, cur)}</div></div>
+      <div class="kpi green"><div class="kpi-label">Bénéfice brut</div>
+        <div class="kpi-value">${fmt(summary.totalGrossProfit, cur)}</div></div>
+      <div class="kpi"><div class="kpi-label">Taux de marge moyen</div>
+        <div class="kpi-value">${summary.averageMarginRate}%</div></div>
+      <div class="kpi"><div class="kpi-label">Articles vendus</div>
+        <div class="kpi-value">${summary.totalUnitsSold}</div></div>
+      <div class="kpi"><div class="kpi-label">Produits distincts</div>
+        <div class="kpi-value">${summary.totalProductsSold}</div></div>
+    </div>
+    <h2>Détail des ventes par produit</h2>
+    <table><thead><tr>
+      <th>#</th><th>Produit</th><th>Code-barres</th><th>Catégorie</th>
+      <th class="text-right">Stock</th><th class="text-right">Prix vente</th><th class="text-right">Qté vendue</th>
+      <th class="text-right">CA</th><th class="text-right">Bénéfice</th><th class="text-right">Marge %</th>
+    </tr></thead>
+    <tbody>${rows}
+      <tr class="summary-row">
+        <td colspan="6">TOTAL</td>
+        <td class="text-right">${summary.totalUnitsSold}</td>
+        <td class="text-right">${fmt(summary.totalRevenue, cur)}</td>
+        <td class="text-right">${fmt(summary.totalGrossProfit, cur)}</td>
+        <td class="text-right">${summary.averageMarginRate}%</td>
+      </tr>
+    </tbody></table>
+    ${footer()}
+  </div></body></html>`;
+}
+
+// ── Rapport Pertes et Démarques ──────────────────────────────────────────────
+
+function buildLossesHtml(data: LossesReportData): string {
+  const { shop, from, to, summary, losses } = data;
+  const cur = shop.currency;
+  const periodLabel = `${fmtDay(new Date(from))} → ${fmtDay(new Date(to))}`;
+
+  const reasonCards = summary.byReason.map((r) => `
+    <div class="kpi">
+      <div class="kpi-label">${r.reason}</div>
+      <div class="kpi-value" style="font-size:14px;color:#dc2626;">${fmt(r.amount, cur)}</div>
+      <div class="kpi-sub">${r.count} incident(s)</div>
+    </div>
+  `).join('');
+
+  const rows = losses.map((l) => `
+    <tr>
+      <td>${fmtDate(new Date(l.date))}</td>
+      <td class="text-bold">${l.productName}</td>
+      <td>${l.barcode ?? '—'}</td>
+      <td><span class="badge badge-out">${l.reason}</span></td>
+      <td class="text-right">${l.quantity}</td>
+      <td class="text-right">${fmt(l.unitCost, cur)}</td>
+      <td class="text-right text-bold" style="color:#dc2626;">${fmt(l.totalLoss, cur)}</td>
+      <td>${l.userName}</td>
+      <td style="color:#64748b;">${l.notes ?? '—'}</td>
+    </tr>
+  `).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>${baseStyle}</style></head><body><div class="page">
+    ${header(shop, 'RAPPORT DES PERTES ET DÉMARQUES', periodLabel)}
+    <div class="kpi-grid">
+      <div class="kpi red"><div class="kpi-label">Valeur totale des pertes</div>
+        <div class="kpi-value">${fmt(summary.totalLossValue, cur)}</div></div>
+      <div class="kpi"><div class="kpi-label">Articles mis au rebut</div>
+        <div class="kpi-value">${summary.totalUnitsLost}</div></div>
+      <div class="kpi"><div class="kpi-label">Nombre de mouvements</div>
+        <div class="kpi-value">${summary.totalMovements}</div></div>
+    </div>
+    ${summary.byReason.length > 0 ? `<h2>Répartition par motif de perte</h2><div class="kpi-grid">${reasonCards}</div>` : ''}
+    <h2>Détail des pertes enregistrées</h2>
+    <table><thead><tr>
+      <th>Date</th><th>Produit</th><th>Code-barres</th><th>Motif</th>
+      <th class="text-right">Quantité</th><th class="text-right">Coût unitaire</th><th class="text-right">Perte totale</th>
+      <th>Agent</th><th>Notes</th>
+    </tr></thead>
+    <tbody>${rows}
+      <tr class="summary-row">
+        <td colspan="4">TOTAL</td>
+        <td class="text-right">${summary.totalUnitsLost}</td>
+        <td></td>
+        <td class="text-right">${fmt(summary.totalLossValue, cur)}</td>
+        <td colspan="2"></td>
+      </tr>
+    </tbody></table>
+    ${footer()}
+  </div></body></html>`;
+}
+
 // ── Service principal ─────────────────────────────────────────────────────────
 
 @Injectable()
@@ -313,4 +435,6 @@ export class PdfGenerator {
   generateFinancial(data: FinancialReportData): Promise<Buffer> { return this.htmlToBuffer(buildFinancialHtml(data)); }
   generateStock(data: StockReportData):    Promise<Buffer> { return this.htmlToBuffer(buildStockHtml(data)); }
   generateDebts(data: DebtsReportData):    Promise<Buffer> { return this.htmlToBuffer(buildDebtsHtml(data)); }
+  generateProductsSalesSummary(data: ProductsSummaryResponseDto): Promise<Buffer> { return this.htmlToBuffer(buildProductsSalesHtml(data)); }
+  generateLosses(data: LossesReportData): Promise<Buffer> { return this.htmlToBuffer(buildLossesHtml(data)); }
 }

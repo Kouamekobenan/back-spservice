@@ -56,6 +56,15 @@ export class ProductResponseDto {
   @ApiProperty()
   unitId: string | null;
 
+  @ApiProperty({ required: false })
+  expiryDate: Date | null;
+
+  @ApiProperty()
+  isExpired: boolean;
+
+  @ApiProperty()
+  isExpiringSoon: boolean;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -82,6 +91,9 @@ export class ProductResponseDto {
     dto.shopId = product.getShopId();
     dto.categoryId = product.getCategoryId();
     dto.unitId = product.getUnitId();
+    dto.expiryDate = product.getExpiryDate();
+    dto.isExpired = product.isExpired();
+    dto.isExpiringSoon = product.isExpiringSoon(30);
     dto.createdAt = product.getCreatedAt();
     dto.updatedAt = product.getUpdatedAt();
     return dto;

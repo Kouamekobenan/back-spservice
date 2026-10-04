@@ -15,6 +15,40 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
     private readonly mapper: StockTransferMapper,
   ) {}
 
+  private async resolveValidUserId(tx: any, preferredUserId?: string, shopId?: string): Promise<string> {
+    if (preferredUserId && preferredUserId !== 'SYSTEM') {
+      const existingUser = await tx.user.findUnique({
+        where: { id: preferredUserId },
+        select: { id: true },
+      });
+      if (existingUser) {
+        return existingUser.id;
+      }
+    }
+
+    if (shopId) {
+      const userAccess = await tx.userShopAccess.findFirst({
+        where: { shopId },
+        select: { userId: true },
+      });
+      if (userAccess) {
+        return userAccess.userId;
+      }
+    }
+
+    const adminOrAny = await tx.user.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (adminOrAny) {
+      return adminOrAny.id;
+    }
+
+    throw new BadRequestException("Aucun utilisateur valide n'a pu être identifié pour enregistrer le mouvement de stock.");
+  }
+
   async generateTransferNumber(fromShopId: string): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
@@ -52,6 +86,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
         });
 
         // 2. Decrement stock from origin and create movement
+        const validUserId = await this.resolveValidUserId(tx, data.userId, data.fromShopId);
         for (const item of data.items) {
           const product = await tx.product.findUnique({ where: { id: item.productId } });
           if (!product) throw new BadRequestException(`Produit ${item.productId} non trouvé.`);
@@ -71,7 +106,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
             data: {
               productId: item.productId,
               shopId: data.fromShopId,
-              userId: data.userId,
+              userId: validUserId,
               reason: StockMovementReason.TRANSFER_OUT,
               quantity: -item.quantity,
               stockBefore: Number(product.stockQty),
@@ -122,6 +157,9 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
 
         if (!transfer) throw new NotFoundException('Transfert non trouvé.');
 
+        const targetShopId = status === StockTransferStatus.COMPLETED ? transfer.toShopId : transfer.fromShopId;
+        const validUserId = await this.resolveValidUserId(tx, userId, targetShopId);
+
         if (status === StockTransferStatus.COMPLETED) {
           // Process reception in destination shop
           for (const item of transfer.items) {
@@ -150,9 +188,24 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
             }
 
             if (!targetProduct) {
-              // Option: Auto-create product in target shop? 
-              // For safety, we throw error asking to create it first, or we clone it.
-              // Let's clone it for a better UX.
+              // Récupérer la catégorie correspondante dans la boutique de destination si existante
+              let targetCategoryId: string | null = null;
+              if (sourceProduct.categoryId) {
+                const sourceCat = await tx.category.findUnique({
+                  where: { id: sourceProduct.categoryId },
+                });
+                if (sourceCat) {
+                  const matchingCat = await tx.category.findFirst({
+                    where: {
+                      shopId: transfer.toShopId,
+                      name: { equals: sourceCat.name, mode: 'insensitive' },
+                    },
+                  });
+                  targetCategoryId = matchingCat?.id ?? null;
+                }
+              }
+
+              // Cloner le produit dans la boutique cible
               targetProduct = await tx.product.create({
                 data: {
                   name: sourceProduct.name,
@@ -164,11 +217,19 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
                   wholeSalePrice: sourceProduct.wholeSalePrice,
                   minStockQty: sourceProduct.minStockQty,
                   maxStockQty: sourceProduct.maxStockQty,
-                  categoryId: sourceProduct.categoryId,
+                  categoryId: targetCategoryId,
                   unitId: sourceProduct.unitId,
                   shopId: transfer.toShopId,
                   stockQty: 0,
-                }
+                  expiryDate: (sourceProduct as any).expiryDate ?? null,
+                  isActive: true,
+                },
+              });
+            } else if (!targetProduct.isActive) {
+              // Réactiver le produit s'il avait été désactivé
+              await tx.product.update({
+                where: { id: targetProduct.id },
+                data: { isActive: true },
               });
             }
 
@@ -181,7 +242,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
               data: {
                 productId: targetProduct.id,
                 shopId: transfer.toShopId,
-                userId: userId,
+                userId: validUserId,
                 reason: StockMovementReason.TRANSFER_IN,
                 quantity: item.quantity,
                 stockBefore: Number(targetProduct.stockQty),
@@ -206,7 +267,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
               data: {
                 productId: item.productId,
                 shopId: transfer.fromShopId,
-                userId: userId,
+                userId: validUserId,
                 reason: StockMovementReason.ADJUSTMENT,
                 quantity: item.quantity,
                 stockBefore: Number(product.stockQty),
