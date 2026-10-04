@@ -7,6 +7,7 @@ export class PurchaseOrderItem {
     private readonly quantityReceived: number,
     private readonly unitCost: number,
     private readonly totalCost: number,
+    private readonly expiryDate?: Date | null,
   ) {}
 
   getId(): string {
@@ -35,5 +36,9 @@ export class PurchaseOrderItem {
 
   getTotalCost(): number {
     return this.totalCost;
+  }
+
+  getExpiryDate(): Date | null {
+    return this.expiryDate ?? null;
   }
 }

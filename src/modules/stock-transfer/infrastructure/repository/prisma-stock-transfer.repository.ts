@@ -6,6 +6,9 @@ import { StockTransferMapper } from '../../domain/mappers/stock-transfer.mapper.
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { StockMovementReason } from '@prisma/client';
 
+const isSQLite = () => process.env.DATABASE_PROVIDER === 'sqlite';
+const caseInsensitive = () => (isSQLite() ? {} : { mode: 'insensitive' as const });
+
 @Injectable()
 export class PrismaStockTransferRepository implements IStockTransferRepository {
   private readonly logger = new Logger(PrismaStockTransferRepository.name);
@@ -169,21 +172,33 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
 
             let targetProduct: any = null; // Utilisation de any ou du type Product si importé
 
-            if (sourceProduct.sku) {
+            // 1. Chercher d'abord par code-barres exact si présent
+            if (sourceProduct.barcode) {
+              targetProduct = await tx.product.findFirst({
+                where: {
+                  shopId: transfer.toShopId,
+                  barcode: { equals: sourceProduct.barcode, ...caseInsensitive() },
+                },
+              });
+            }
+
+            // 2. Sinon chercher par SKU si présent
+            if (!targetProduct && sourceProduct.sku) {
               targetProduct = await tx.product.findFirst({
                 where: {
                   shopId: transfer.toShopId,
                   sku: sourceProduct.sku,
-                }
+                },
               });
             }
 
-            if (!targetProduct && sourceProduct.barcode) {
+            // 3. Sinon chercher par Nom exact (insensible à la casse et aux espaces)
+            if (!targetProduct && sourceProduct.name) {
               targetProduct = await tx.product.findFirst({
                 where: {
                   shopId: transfer.toShopId,
-                  barcode: sourceProduct.barcode,
-                }
+                  name: { equals: sourceProduct.name.trim(), ...caseInsensitive() },
+                },
               });
             }
 
@@ -198,7 +213,7 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
                   const matchingCat = await tx.category.findFirst({
                     where: {
                       shopId: transfer.toShopId,
-                      name: { equals: sourceCat.name, mode: 'insensitive' },
+                      name: { equals: sourceCat.name.trim(), ...caseInsensitive() },
                     },
                   });
                   targetCategoryId = matchingCat?.id ?? null;
@@ -225,12 +240,24 @@ export class PrismaStockTransferRepository implements IStockTransferRepository {
                   isActive: true,
                 },
               });
-            } else if (!targetProduct.isActive) {
-              // Réactiver le produit s'il avait été désactivé
-              await tx.product.update({
-                where: { id: targetProduct.id },
-                data: { isActive: true },
-              });
+            } else {
+              // Si le produit existe déjà : réactiver s'il était archivé, et enrichir barcode/expiryDate si absent
+              const enrichData: any = {};
+              if (!targetProduct.isActive) {
+                enrichData.isActive = true;
+              }
+              if (!targetProduct.barcode && sourceProduct.barcode) {
+                enrichData.barcode = sourceProduct.barcode;
+              }
+              if (!targetProduct.expiryDate && (sourceProduct as any).expiryDate) {
+                enrichData.expiryDate = (sourceProduct as any).expiryDate;
+              }
+              if (Object.keys(enrichData).length > 0) {
+                await tx.product.update({
+                  where: { id: targetProduct.id },
+                  data: enrichData,
+                });
+              }
             }
 
             const updatedTargetProduct = await tx.product.update({
