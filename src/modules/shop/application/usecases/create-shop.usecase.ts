@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AuditEvent } from '../../../../common/events/audit.event.js';
 import { AuditAction, Role } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
+import { UserAccessCache } from '../../../auth/strategies/user-access.cache.js';
 
 @Injectable()
 export class CreateShopUseCase {
@@ -42,6 +43,7 @@ export class CreateShopUseCase {
               roleInShop: Role.ADMIN,
             },
           });
+          UserAccessCache.invalidate(targetUserId);
           this.logger.log(`Accès ADMIN automatiquement attribué à l'utilisateur ${targetUserId} pour la boutique ${shop.getId()}`);
         } catch (accessError) {
           this.logger.warn(`Impossible d'attribuer l'accès à la boutique pour ${targetUserId}: ${accessError instanceof Error ? accessError.message : accessError}`);

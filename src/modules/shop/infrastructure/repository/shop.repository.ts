@@ -12,6 +12,7 @@ import { UpdateShopDto } from '../../application/dtos/update-shop.dto.js';
 import { FilterShopDto } from '../../application/dtos/filter-shop.dto.js';
 import { Shop } from '../../domain/entities/shop-entity.entity.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
+import { UserAccessCache } from '../../../auth/strategies/user-access.cache.js';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseRepository } from '../../../../common/types/response-respository.js';
 
@@ -156,6 +157,7 @@ export class ShopRepository implements IShopRepository {
         await tx.shop.delete({ where: { id } });
       }, { timeout: 30000 });
 
+      UserAccessCache.clear();
       this.logger.log(`Boutique ${id} supprimée avec succès`);
     } catch (error) {
       this.logger.error(`Échec de la suppression de la boutique: ${id}`);
