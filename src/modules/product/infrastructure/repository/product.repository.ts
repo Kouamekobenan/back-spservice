@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -110,8 +109,10 @@ export class ProductRepository implements IProductRepository {
         limit,
       };
     } catch (error) {
-      this.logger.error('Failed to paginate products');
-      throw new BadRequestException('Error during pagination');
+      this.logger.error(
+        `Failed to paginate products: ${error instanceof Error ? error.message : error}`,
+      );
+      throw new InternalServerErrorException('Error during pagination');
     }
   }
 

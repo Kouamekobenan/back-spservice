@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { UserAccessCache } from '../../../auth/strategies/user-access.cache';
 
 @Injectable()
 export class UserShopAccessRepository {
@@ -10,15 +11,21 @@ export class UserShopAccessRepository {
   }
 
   async create(data: { userId: string; shopId: string; roleInShop?: any }) {
-    return this.prisma.userShopAccess.create({ data });
+    const access = await this.prisma.userShopAccess.create({ data });
+    UserAccessCache.invalidate(data.userId);
+    return access;
   }
 
   async update(id: string, data: { roleInShop?: any }) {
-    return this.prisma.userShopAccess.update({ where: { id }, data });
+    const access = await this.prisma.userShopAccess.update({ where: { id }, data });
+    UserAccessCache.invalidate(access.userId);
+    return access;
   }
 
   async delete(id: string) {
-    return this.prisma.userShopAccess.delete({ where: { id } });
+    const access = await this.prisma.userShopAccess.delete({ where: { id } });
+    UserAccessCache.invalidate(access.userId);
+    return access;
   }
 
   async findByShop(shopId: string) {
