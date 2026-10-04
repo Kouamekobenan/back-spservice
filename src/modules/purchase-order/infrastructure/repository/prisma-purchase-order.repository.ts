@@ -52,6 +52,7 @@ export class PrismaPurchaseOrderRepository implements IPurchaseOrderRepository {
               quantityOrdered: item.quantityOrdered,
               unitCost: item.unitCost,
               totalCost: item.unitCost * item.quantityOrdered,
+              expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
             })),
           },
         },
@@ -125,20 +126,32 @@ export class PrismaPurchaseOrderRepository implements IPurchaseOrderRepository {
           const originalItem = order.items.find(i => i.productId === receivedItem.productId);
           if (!originalItem) continue;
 
-          // 1. Update quantityReceived in PO Item
+          // 1. Update quantityReceived in PO Item (et expiryDate si fournie/modifiée à la réception)
           const newQtyReceived = Number(originalItem.quantityReceived) + receivedItem.quantityReceived;
+          const effectiveExpiryDate = receivedItem.expiryDate
+            ? new Date(receivedItem.expiryDate)
+            : (originalItem as any).expiryDate;
+
           await tx.purchaseOrderItem.update({
             where: { id: originalItem.id },
-            data: { quantityReceived: newQtyReceived },
+            data: {
+              quantityReceived: newQtyReceived,
+              ...(receivedItem.expiryDate && { expiryDate: effectiveExpiryDate }),
+            },
           });
 
-          // 2. Update Product stock
+          // 2. Update Product stock & expiryDate
+          const productUpdateData: any = {
+            stockQty: { increment: receivedItem.quantityReceived },
+            buyingPrice: originalItem.unitCost, // Update buying price to last cost
+          };
+          if (effectiveExpiryDate) {
+            productUpdateData.expiryDate = effectiveExpiryDate;
+          }
+
           const product = await tx.product.update({
             where: { id: receivedItem.productId },
-            data: { 
-                stockQty: { increment: receivedItem.quantityReceived },
-                buyingPrice: originalItem.unitCost // Update buying price to last cost
-            },
+            data: productUpdateData,
           });
 
           // 3. Create Stock Movement

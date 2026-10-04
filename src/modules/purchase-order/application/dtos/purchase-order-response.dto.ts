@@ -17,6 +17,9 @@ export class PurchaseOrderItemResponseDto {
 
   @ApiProperty()
   totalCost: number;
+
+  @ApiProperty({ required: false })
+  expiryDate: Date | null;
 }
 
 export class PurchaseOrderResponseDto {
@@ -83,6 +86,7 @@ export class PurchaseOrderResponseDto {
       quantityReceived: item.getQuantityReceived(),
       unitCost: item.getUnitCost(),
       totalCost: item.getTotalCost(),
+      expiryDate: item.getExpiryDate(),
     }));
     return dto;
   }

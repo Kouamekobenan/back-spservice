@@ -20,6 +20,7 @@ export class PurchaseOrderMapper {
       Number(item.quantityReceived),
       Number(item.unitCost),
       Number(item.totalCost),
+      (item as any).expiryDate ? new Date((item as any).expiryDate) : null,
     )) || [];
 
     return new PurchaseOrder(

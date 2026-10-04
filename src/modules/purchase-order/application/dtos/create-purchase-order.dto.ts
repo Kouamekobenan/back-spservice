@@ -26,6 +26,15 @@ export class CreatePurchaseOrderItemDto {
   @IsNumber()
   @Min(0)
   unitCost: number;
+
+  @ApiProperty({
+    example: '2026-12-31T23:59:59Z',
+    required: false,
+    description: 'Date de péremption de l\'article commandé',
+  })
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
 }
 
 export class CreatePurchaseOrderDto {
