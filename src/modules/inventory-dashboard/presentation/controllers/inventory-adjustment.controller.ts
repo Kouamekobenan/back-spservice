@@ -9,6 +9,7 @@ import {
   HttpStatus,
   HttpCode,
   UsePipes,
+  UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
 import {
@@ -19,6 +20,7 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import {
   AdjustDiscrepanciesDto,
   AdjustDiscrepanciesResponseDto,
@@ -39,6 +41,7 @@ import { StockMovementReason } from '@prisma/client';
 
 @ApiTags('Inventory — Adjustments & Loss')
 @ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('inventory')
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class InventoryAdjustmentController {

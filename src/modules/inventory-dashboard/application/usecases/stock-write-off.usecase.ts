@@ -111,6 +111,8 @@ export class StockWriteOffUseCase {
     let totalLossValue = 0;
 
     await this.prisma.$transaction(async (tx) => {
+      const validUserId = await this.resolveValidUserId(tx, data.userId, data.shopId);
+
       for (const [productId, item] of consolidatedMap.entries()) {
         const prod = productMap.get(productId)!;
         const currentStock = Number(prod.stockQty);
@@ -134,7 +136,7 @@ export class StockWriteOffUseCase {
           data: {
             productId: prod.id,
             shopId: data.shopId,
-            userId: data.userId || 'SYSTEM',
+            userId: validUserId,
             reason: StockMovementReason.LOSS,
             quantity: qtyToWriteOff,
             stockBefore: currentStock,
@@ -150,7 +152,7 @@ export class StockWriteOffUseCase {
             action: AuditAction.STOCK_ADJUSTMENT,
             entityType: 'Product',
             entityId: prod.id,
-            userId: data.userId || null,
+            userId: validUserId,
             shopId: data.shopId,
             dataBefore: {
               stockQty: currentStock,
@@ -236,5 +238,45 @@ export class StockWriteOffUseCase {
       where: { userId_shopId: { userId, shopId } },
     });
     return !!access;
+  }
+
+  private async resolveValidUserId(
+    tx: any,
+    preferredUserId?: string,
+    shopId?: string,
+  ): Promise<string> {
+    if (preferredUserId && preferredUserId !== 'SYSTEM') {
+      const existingUser = await tx.user.findUnique({
+        where: { id: preferredUserId },
+        select: { id: true },
+      });
+      if (existingUser) {
+        return existingUser.id;
+      }
+    }
+
+    if (shopId) {
+      const userAccess = await tx.userShopAccess.findFirst({
+        where: { shopId },
+        select: { userId: true },
+      });
+      if (userAccess) {
+        return userAccess.userId;
+      }
+    }
+
+    const firstActiveUser = await tx.user.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (firstActiveUser) {
+      return firstActiveUser.id;
+    }
+
+    throw new BadRequestException(
+      "Aucun utilisateur valide n'a pu être identifié pour enregistrer le mouvement de stock.",
+    );
   }
 }

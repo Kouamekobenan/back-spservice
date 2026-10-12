@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Req, Logger, HttpStatus, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, Logger, HttpStatus, HttpCode, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -7,6 +7,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InventoryQueryDto } from '../../application/dtos/inventory-query.dto.js';
 import {
@@ -110,6 +111,7 @@ export class InventoryDashboardController {
     return this.alertsUseCase.execute(shopId, query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('adjust-discrepancies')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
