@@ -13,6 +13,13 @@ export class CreateProductUseCase {
   ) {}
 
   async execute(data: CreateProductDto): Promise<ProductResponseDto> {
+    if (data.barcode) {
+      data.barcode = data.barcode.trim();
+      if (data.barcode === '') {
+        delete data.barcode;
+      }
+    }
+
     if (!data.barcode) {
       data.barcode = await this.productRepository.generateUniqueBarcode(data.shopId);
     }

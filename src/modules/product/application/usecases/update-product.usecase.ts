@@ -19,10 +19,13 @@ export class UpdateProductUseCase {
     const shopId = existingProduct.getShopId();
 
     // Vérifier l'unicité du code-barres si modifié
-    if (data.barcode && data.barcode !== existingProduct.getBarcode()) {
-      const existingBarcode = await this.productRepository.findByBarcode(data.barcode, shopId);
-      if (existingBarcode) {
-        throw new ConflictException({ message: 'Ce code-barres est déjà utilisé', field: 'barcode' });
+    if (data.barcode) {
+      data.barcode = data.barcode.trim();
+      if (data.barcode !== existingProduct.getBarcode()) {
+        const existingBarcode = await this.productRepository.findByBarcode(data.barcode, shopId);
+        if (existingBarcode) {
+          throw new ConflictException({ message: 'Ce code-barres est déjà utilisé', field: 'barcode' });
+        }
       }
     }
 

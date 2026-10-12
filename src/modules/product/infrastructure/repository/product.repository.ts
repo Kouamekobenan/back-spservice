@@ -154,15 +154,21 @@ export class ProductRepository implements IProductRepository {
   }
 
   async findByBarcode(barcode: string, shopId: string): Promise<Product | null> {
+    const cleanBarcode = barcode.trim();
     const product = await this.prisma.product.findFirst({
-      where: { barcode, shopId },
+      where: { barcode: cleanBarcode, shopId, isActive: true },
     });
     return product ? this.mapper.toDomain(product) : null;
   }
 
   async findByBarcodeExact(barcode: string, shopId?: string): Promise<Product | null> {
+    const cleanCode = barcode.trim();
     const where: Prisma.ProductWhereInput = {
-      barcode: { equals: barcode, ...caseInsensitive() },
+      isActive: true,
+      OR: [
+        { barcode: { equals: cleanCode, ...caseInsensitive() } },
+        { sku: { equals: cleanCode, ...caseInsensitive() } },
+      ],
     };
     if (shopId) where.shopId = shopId;
     const product = await this.prisma.product.findFirst({ where });
