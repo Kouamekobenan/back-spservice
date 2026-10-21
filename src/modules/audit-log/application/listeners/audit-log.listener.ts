@@ -11,6 +11,9 @@ export class AuditLogListener {
 
   @OnEvent('audit.created')
   async handleAuditCreatedEvent(event: AuditEvent) {
+    // 💡 Audit logs désactivés temporairement pour économiser le stockage et les coûts de la base de données
+    return;
+    /*
     try {
       this.logger.debug(`Handling audit event for ${event.entityType}`);
       await this.createAuditLogUseCase.execute({
@@ -28,5 +31,6 @@ export class AuditLogListener {
     } catch (error) {
       this.logger.error('Failed to process audit event', error instanceof Error ? error.stack : error);
     }
+    */
   }
 }

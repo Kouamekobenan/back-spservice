@@ -4,7 +4,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AppService } from './app.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { UserModule } from './modules/auth/users/user.module';
-import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { ShopModule } from './modules/shop/shop.module.js';
 import { CategoryModule } from './modules/category/category.module.js';
@@ -32,12 +31,15 @@ import { InventoryDashboardModule } from './modules/inventory-dashboard/inventor
 import { MailModule } from './modules/mail/mail.module';
 import { ReportSchedulerModule } from './modules/report-scheduler/report-scheduler.module';
 
+import { PrismaModule } from './prisma/prisma.module.js';
+
 @Module({
   imports: [
     //  ConfigModule (sans les options de ServeStatic)
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    PrismaModule,
     EventEmitterModule.forRoot(),
     // Vos autres modules
     UserModule,
@@ -69,6 +71,6 @@ import { ReportSchedulerModule } from './modules/report-scheduler/report-schedul
     ReportSchedulerModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService],
 })
 export class AppModule {}

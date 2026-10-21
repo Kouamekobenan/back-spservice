@@ -146,7 +146,8 @@ export class StockWriteOffUseCase {
           },
         });
 
-        // Journal d'audit
+        // Journal d'audit (désactivé pour économiser le stockage base de données)
+        /*
         await tx.auditLog.create({
           data: {
             action: AuditAction.STOCK_ADJUSTMENT,
@@ -167,6 +168,7 @@ export class StockWriteOffUseCase {
             notes: movementNotes,
           },
         });
+        */
 
         totalUnitsWrittenOff += qtyToWriteOff;
         totalLossValue += lossVal;
