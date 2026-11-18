@@ -19,13 +19,16 @@ export class PrismaSaleRepository implements ISaleRepository {
   ) {}
 
   async generateReceiptNumber(shopId: string): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const startOfDay = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    );
     const count = await this.prisma.sale.count({
       where: {
         shopId,
         createdAt: {
-          gte: new Date(today.setHours(0, 0, 0, 0)),
+          gte: startOfDay,
         },
       },
     });
@@ -35,65 +38,149 @@ export class PrismaSaleRepository implements ISaleRepository {
   async create(data: CreateSaleDto, receiptNumber: string): Promise<Sale> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // 1. Fetch all products in one query (single round-trip avec IN)
-        const productIds = data.items.map((i) => i.productId);
+        // 1. Fetch all products in one query (par id ou localId)
+        const requestedProductIds = [...new Set(data.items.map((i) => i.productId))];
         const productList = await tx.product.findMany({
-          where: { id: { in: productIds } },
+          where: {
+            OR: [
+              { id: { in: requestedProductIds } },
+              { localId: { in: requestedProductIds } },
+            ],
+          },
         });
         type PRow = (typeof productList)[0];
-        const productMap = new Map<string, PRow>(productList.map((p) => [p.id, p]));
+        const productMap = new Map<string, PRow>();
+        for (const p of productList) {
+          productMap.set(p.id, p);
+          if (p.localId) productMap.set(p.localId, p);
+        }
         const products = data.items.map((i) => productMap.get(i.productId) ?? null);
 
-        // 2. Validate existence and stock before any write
+        // Vérifier le paramètre boutique allowNegativeStock (true par défaut pour ne jamais bloquer la caisse)
+        const negStockSetting = await tx.shopSetting.findUnique({
+          where: {
+            shopId_key: {
+              shopId: data.shopId,
+              key: 'allowNegativeStock',
+            },
+          },
+        });
+        const allowNegativeStock = negStockSetting?.value !== 'false';
+
+        // 2. Validate existence and cumulative stock per product
+        const cumulativeQty = new Map<string, number>();
         for (let i = 0; i < data.items.length; i++) {
           const product = products[i];
           const item = data.items[i];
           if (!product) {
             throw new BadRequestException(`Produit ${item.productId} non trouvé`);
           }
-          if (Number(product.stockQty) < item.quantity) {
-            throw new BadRequestException(
-              `Stock insuffisant pour "${product.name}" (disponible : ${product.stockQty}, demandé : ${item.quantity})`
+          const prevQty = cumulativeQty.get(product.id) ?? 0;
+          const newTotalQty = prevQty + Number(item.quantity);
+          cumulativeQty.set(product.id, newTotalQty);
+
+          if (Number(product.stockQty) < newTotalQty) {
+            if (!allowNegativeStock) {
+              throw new BadRequestException(
+                `Stock insuffisant pour "${product.name}" (disponible : ${product.stockQty}, demandé : ${newTotalQty})`,
+              );
+            }
+            this.logger.warn(
+              `⚠️ Stock théorique insuffisant pour "${product.name}" (shop=${data.shopId}, disponible=${product.stockQty}, vendu=${newTotalQty}) — vente autorisée en caisse.`,
             );
           }
         }
 
-        // 3. Calculate totals
-        const subtotal = data.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-        const discountAmount = data.discountAmount || 0;
-        const taxAmount = data.taxAmount || 0;
-        const totalAmount = subtotal - discountAmount + taxAmount;
-        const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
-        const changeAmount = Math.max(0, totalPaid - totalAmount);
+        // Résoudre customerId et cashSessionId (supporte UUID serveur ou localId hors-ligne)
+        let resolvedCustomerId: string | undefined = data.customerId;
+        if (data.customerId) {
+          const customer = await tx.customer.findFirst({
+            where: { OR: [{ id: data.customerId }, { localId: data.customerId }] },
+            select: { id: true },
+          });
+          if (!customer) {
+            throw new BadRequestException(`Client ${data.customerId} non trouvé`);
+          }
+          resolvedCustomerId = customer.id;
+        }
 
-        // 4. Create sale + items + payments (reuse product data already fetched)
+        let resolvedCashSessionId: string | undefined = data.cashSessionId;
+        if (data.cashSessionId) {
+          const session = await tx.cashSession.findFirst({
+            where: { OR: [{ id: data.cashSessionId }, { localId: data.cashSessionId }] },
+            select: { id: true },
+          });
+          resolvedCashSessionId = session ? session.id : undefined;
+        }
+
+        // 3. Calculate totals (en prenant en compte les remises par ligne de manière cohérente)
+        const preparedItems = data.items.map((item, i) => {
+          const product = products[i]!;
+          const qty = Number(item.quantity);
+          const unitPrice = Number(item.unitPrice);
+          const discount = Number(item.discount || 0);
+          const totalPrice = Math.max(0, (unitPrice - discount) * qty);
+          return {
+            productId: product.id,
+            productName: product.name,
+            productSku: product.sku,
+            quantity: qty,
+            unitPrice,
+            discount,
+            totalPrice,
+          };
+        });
+
+        const subtotal = preparedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        const discountAmount = Number(data.discountAmount || 0);
+        const taxAmount = Number(data.taxAmount || 0);
+        const totalAmount = Math.max(0, subtotal - discountAmount + taxAmount);
+
+        const totalTendered = (data.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+        const creditAmount = (data.payments || [])
+          .filter((p) => p.method === PaymentMethod.CREDIT)
+          .reduce((sum, p) => sum + Number(p.amount), 0);
+        const nonCreditTendered = totalTendered - creditAmount;
+
+        if (creditAmount > 0 && !resolvedCustomerId) {
+          throw new BadRequestException(
+            'Un client doit être associé à la vente pour un paiement à crédit.',
+          );
+        }
+
+        if (totalTendered < totalAmount && !resolvedCustomerId) {
+          throw new BadRequestException(
+            `Montant payé (${totalTendered}) inférieur au total de la vente (${totalAmount}).`,
+          );
+        }
+
+        const amountDueImmediate = Math.max(0, totalAmount - creditAmount);
+        const changeAmount = Math.max(0, nonCreditTendered - amountDueImmediate);
+        const paidAmount = Math.max(0, nonCreditTendered - changeAmount);
+        const totalDebtToAdd = creditAmount + Math.max(0, totalAmount - totalTendered);
+        const status = totalDebtToAdd > 0 ? 'PARTIALLY_PAID' : 'COMPLETED';
+
+        // 4. Create sale + items + payments
         const sale = await tx.sale.create({
           data: {
             receiptNumber,
+            status,
             shopId: data.shopId,
             userId: data.userId,
-            customerId: data.customerId,
-            cashSessionId: data.cashSessionId,
+            customerId: resolvedCustomerId,
+            cashSessionId: resolvedCashSessionId,
             subtotal,
             discountAmount,
             taxAmount,
             totalAmount,
-            paidAmount: totalPaid - changeAmount,
+            paidAmount,
             changeAmount,
             notes: data.notes,
             items: {
-              create: data.items.map((item, i) => ({
-                productId:   item.productId,
-                productName: products[i]!.name,
-                productSku:  products[i]!.sku,
-                quantity:    item.quantity,
-                unitPrice:   item.unitPrice,
-                discount:    item.discount || 0,
-                totalPrice:  (item.unitPrice - (item.discount || 0)) * item.quantity,
-              })),
+              create: preparedItems,
             },
             payments: {
-              create: data.payments.map((p) => ({
+              create: (data.payments || []).map((p) => ({
                 method: p.method,
                 amount: p.amount,
                 reference: p.reference,
@@ -103,38 +190,42 @@ export class PrismaSaleRepository implements ISaleRepository {
           include: { items: true, payments: true },
         });
 
-        // 5. Update stock + create movements in parallel (no extra product fetch)
-        await Promise.all(
-          data.items.map(async (item, i) => {
-            const stockBefore = Number(products[i]!.stockQty);
-            const stockAfter = stockBefore - item.quantity;
-            await Promise.all([
-              tx.product.update({
-                where: { id: item.productId },
-                data: { stockQty: { decrement: item.quantity } },
-              }),
-              tx.stockMovement.create({
-                data: {
-                  productId: item.productId,
-                  shopId: data.shopId,
-                  userId: data.userId,
-                  reason: StockMovementReason.SALE,
-                  quantity: -item.quantity,
-                  stockBefore,
-                  stockAfter,
-                  saleId: sale.id,
-                },
-              }),
-            ]);
-          })
-        );
+        // 5. Update stock + create movements (suivi séquentiel du stockBefore si même produit sur plusieurs lignes)
+        const runningStockMap = new Map<string, number>();
+        for (const p of productList) {
+          runningStockMap.set(p.id, Number(p.stockQty));
+        }
 
-        // 6. Update customer debt if CREDIT payment
-        const creditPayment = data.payments.find(p => p.method === PaymentMethod.CREDIT);
-        if (creditPayment && data.customerId) {
+        for (const item of preparedItems) {
+          const stockBefore = runningStockMap.get(item.productId) ?? 0;
+          const stockAfter = stockBefore - item.quantity;
+          runningStockMap.set(item.productId, stockAfter);
+
+          await Promise.all([
+            tx.product.update({
+              where: { id: item.productId },
+              data: { stockQty: { decrement: item.quantity } },
+            }),
+            tx.stockMovement.create({
+              data: {
+                productId: item.productId,
+                shopId: data.shopId,
+                userId: data.userId,
+                reason: StockMovementReason.SALE,
+                quantity: -item.quantity,
+                stockBefore,
+                stockAfter,
+                saleId: sale.id,
+              },
+            }),
+          ]);
+        }
+
+        // 6. Update customer debt if CREDIT payment or partial payment
+        if (totalDebtToAdd > 0 && resolvedCustomerId) {
           await tx.customer.update({
-            where: { id: data.customerId },
-            data: { totalDebt: { increment: creditPayment.amount } },
+            where: { id: resolvedCustomerId },
+            data: { totalDebt: { increment: totalDebtToAdd } },
           });
         }
 
@@ -183,48 +274,64 @@ export class PrismaSaleRepository implements ISaleRepository {
           include: { items: true, payments: true },
         });
 
-        // Restitution du stock (batch — 1 query au lieu de N)
-        const voidProductIds = sale.items.map((i) => i.productId);
+        // Restitution du stock (suivi séquentiel du stockBefore si même produit sur plusieurs lignes)
+        const voidProductIds = [...new Set(sale.items.map((i) => i.productId))];
         const voidProducts = await tx.product.findMany({
           where: { id: { in: voidProductIds } },
           select: { id: true, stockQty: true },
         });
-        type VRow = (typeof voidProducts)[0];
-        const voidStockMap = new Map<string, VRow>(voidProducts.map((p) => [p.id, p]));
-
-        await Promise.all(
-          sale.items.map(async (item) => {
-            const stockBefore = Number(voidStockMap.get(item.productId)!.stockQty);
-            const qty = Number(item.quantity);
-            await Promise.all([
-              tx.product.update({
-                where: { id: item.productId },
-                data: { stockQty: { increment: qty } },
-              }),
-              tx.stockMovement.create({
-                data: {
-                  productId: item.productId,
-                  shopId: sale.shopId,
-                  userId,
-                  reason: StockMovementReason.RETURN_IN,
-                  quantity: qty,
-                  stockBefore,
-                  stockAfter: stockBefore + qty,
-                  saleId: sale.id,
-                  notes: `Annulation vente ${sale.receiptNumber}`,
-                },
-              }),
-            ]);
-          }),
+        const runningVoidStock = new Map<string, number>(
+          voidProducts.map((p) => [p.id, Number(p.stockQty)]),
         );
 
-        // Réduction de la dette client si paiement CREDIT
-        const creditPayment = sale.payments.find((p) => p.method === PaymentMethod.CREDIT);
-        if (creditPayment && sale.customerId) {
-          await tx.customer.update({
-            where: { id: sale.customerId },
-            data: { totalDebt: { decrement: Number(creditPayment.amount) } },
-          });
+        for (const item of sale.items) {
+          const stockBefore = runningVoidStock.get(item.productId) ?? 0;
+          const qty = Number(item.quantity);
+          const stockAfter = stockBefore + qty;
+          runningVoidStock.set(item.productId, stockAfter);
+
+          await Promise.all([
+            tx.product.update({
+              where: { id: item.productId },
+              data: { stockQty: { increment: qty } },
+            }),
+            tx.stockMovement.create({
+              data: {
+                productId: item.productId,
+                shopId: sale.shopId,
+                userId,
+                reason: StockMovementReason.RETURN_IN,
+                quantity: qty,
+                stockBefore,
+                stockAfter,
+                saleId: sale.id,
+                notes: `Annulation vente ${sale.receiptNumber}`,
+              },
+            }),
+          ]);
+        }
+
+        // Réduction de la dette client si paiement CREDIT ou reste impayé
+        if (sale.customerId) {
+          const creditPaymentsSum = sale.payments
+            .filter((p) => p.method === PaymentMethod.CREDIT)
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+          const unpaidBalance = Math.max(0, Number(sale.totalAmount) - Number(sale.paidAmount));
+          const debtToReduce = Math.max(creditPaymentsSum, unpaidBalance);
+
+          if (debtToReduce > 0) {
+            const customer = await tx.customer.findUnique({
+              where: { id: sale.customerId },
+              select: { totalDebt: true },
+            });
+            if (customer) {
+              const newDebt = Math.max(0, Number(customer.totalDebt) - debtToReduce);
+              await tx.customer.update({
+                where: { id: sale.customerId },
+                data: { totalDebt: newDebt },
+              });
+            }
+          }
         }
 
         return this.mapper.toDomain(updated);
@@ -254,7 +361,22 @@ export class PrismaSaleRepository implements ISaleRepository {
           );
         }
 
-        // Construction des articles à rembourser (total ou partiel)
+        // Vérifier les remboursements déjà effectués sur cette vente pour empêcher un remboursement > 100%
+        const previousRefunds = await tx.sale.findMany({
+          where: { originalSaleId: saleId, status: 'REFUNDED' },
+          include: { items: true },
+        });
+        const alreadyRefundedByProduct = new Map<string, number>();
+        for (const r of previousRefunds) {
+          for (const ri of r.items) {
+            alreadyRefundedByProduct.set(
+              ri.productId,
+              (alreadyRefundedByProduct.get(ri.productId) ?? 0) + Number(ri.quantity),
+            );
+          }
+        }
+
+        // Construction des articles à rembourser (total restant ou partiel)
         type RefundLine = {
           productId: string; productName: string; productSku: string | null;
           quantity: number; unitPrice: number; discount: number; totalPrice: number;
@@ -263,16 +385,42 @@ export class PrismaSaleRepository implements ISaleRepository {
         let lines: RefundLine[];
 
         if (!dto.items || dto.items.length === 0) {
-          lines = originalSale.items.map((item) => ({
-            productId:   item.productId,
-            productName: item.productName,
-            productSku:  item.productSku,
-            quantity:    Number(item.quantity),
-            unitPrice:   Number(item.unitPrice),
-            discount:    Number(item.discount),
-            totalPrice:  Number(item.totalPrice),
-          }));
+          lines = [];
+          for (const item of originalSale.items) {
+            const origQty = Number(item.quantity);
+            const refundedSoFar = alreadyRefundedByProduct.get(item.productId) ?? 0;
+            const remainingQty = Math.max(0, origQty - refundedSoFar);
+            if (remainingQty > 0) {
+              alreadyRefundedByProduct.set(item.productId, Math.max(0, refundedSoFar - origQty));
+              const ratio = remainingQty / origQty;
+              lines.push({
+                productId:   item.productId,
+                productName: item.productName,
+                productSku:  item.productSku,
+                quantity:    remainingQty,
+                unitPrice:   Number(item.unitPrice),
+                discount:    Number(item.discount),
+                totalPrice:  Number(item.totalPrice) * ratio,
+              });
+            } else {
+              alreadyRefundedByProduct.set(item.productId, Math.max(0, refundedSoFar - origQty));
+            }
+          }
+          if (lines.length === 0) {
+            throw new BadRequestException(
+              `Cette vente (${originalSale.receiptNumber}) a déjà été intégralement remboursée.`,
+            );
+          }
         } else {
+          // Calculer la quantité totale vendue par produit sur la vente originale
+          const totalSoldByProduct = new Map<string, number>();
+          for (const item of originalSale.items) {
+            totalSoldByProduct.set(
+              item.productId,
+              (totalSoldByProduct.get(item.productId) ?? 0) + Number(item.quantity),
+            );
+          }
+
           lines = [];
           for (const refundItem of dto.items) {
             const orig = originalSale.items.find((i) => i.id === refundItem.saleItemId);
@@ -281,11 +429,17 @@ export class PrismaSaleRepository implements ISaleRepository {
                 `Article ${refundItem.saleItemId} non trouvé dans la vente originale`,
               );
             }
-            if (refundItem.quantity > Number(orig.quantity)) {
+            const totalSold = totalSoldByProduct.get(orig.productId) ?? Number(orig.quantity);
+            const alreadyRefunded = alreadyRefundedByProduct.get(orig.productId) ?? 0;
+            const maxRefundable = Math.max(0, totalSold - alreadyRefunded);
+
+            if (refundItem.quantity > Number(orig.quantity) || refundItem.quantity > maxRefundable) {
               throw new BadRequestException(
-                `Quantité à rembourser (${refundItem.quantity}) supérieure à la quantité vendue (${orig.quantity}) pour "${orig.productName}"`,
+                `Quantité à rembourser (${refundItem.quantity}) supérieure à la quantité restante remboursable (${maxRefundable}) pour "${orig.productName}"`,
               );
             }
+            alreadyRefundedByProduct.set(orig.productId, alreadyRefunded + refundItem.quantity);
+
             const ratio = refundItem.quantity / Number(orig.quantity);
             lines.push({
               productId:   orig.productId,
@@ -337,53 +491,67 @@ export class PrismaSaleRepository implements ISaleRepository {
           include: { items: true, payments: true },
         });
 
-        // Restitution du stock si demandée (batch — 1 query au lieu de N)
+        // Restitution du stock si demandée (suivi séquentiel du stockBefore)
         if (dto.returnToStock) {
-          const returnIds = lines.map((l) => l.productId);
+          const returnIds = [...new Set(lines.map((l) => l.productId))];
           const returnProducts = await tx.product.findMany({
             where: { id: { in: returnIds } },
             select: { id: true, stockQty: true },
           });
-          type RRow = (typeof returnProducts)[0];
-          const returnMap = new Map<string, RRow>(returnProducts.map((p) => [p.id, p]));
-
-          await Promise.all(
-            lines.map(async (l) => {
-              const stockBefore = Number(returnMap.get(l.productId)!.stockQty);
-              await Promise.all([
-                tx.product.update({
-                  where: { id: l.productId },
-                  data: { stockQty: { increment: l.quantity } },
-                }),
-                tx.stockMovement.create({
-                  data: {
-                    productId:   l.productId,
-                    shopId:      originalSale.shopId,
-                    userId:      dto.userId,
-                    reason:      StockMovementReason.RETURN_IN,
-                    quantity:    l.quantity,
-                    stockBefore,
-                    stockAfter:  stockBefore + l.quantity,
-                    saleId:      refundSale.id,
-                    notes:       `Retour produit - Remboursement ${originalSale.receiptNumber}`,
-                  },
-                }),
-              ]);
-            }),
+          const runningReturnStock = new Map<string, number>(
+            returnProducts.map((p) => [p.id, Number(p.stockQty)]),
           );
+
+          for (const l of lines) {
+            const stockBefore = runningReturnStock.get(l.productId) ?? 0;
+            const stockAfter = stockBefore + l.quantity;
+            runningReturnStock.set(l.productId, stockAfter);
+
+            await Promise.all([
+              tx.product.update({
+                where: { id: l.productId },
+                data: { stockQty: { increment: l.quantity } },
+              }),
+              tx.stockMovement.create({
+                data: {
+                  productId:   l.productId,
+                  shopId:      originalSale.shopId,
+                  userId:      dto.userId,
+                  reason:      StockMovementReason.RETURN_IN,
+                  quantity:    l.quantity,
+                  stockBefore,
+                  stockAfter,
+                  saleId:      refundSale.id,
+                  notes:       `Retour produit - Remboursement ${originalSale.receiptNumber}`,
+                },
+              }),
+            ]);
+          }
         }
 
         // Réduction proportionnelle de la dette client si CREDIT
-        if (originalSale.customerId) {
-          const creditPayment = originalSale.payments.find((p) => p.method === PaymentMethod.CREDIT);
-          if (creditPayment) {
+        if (originalSale.customerId && Number(originalSale.totalAmount) > 0) {
+          const creditPaymentsSum = originalSale.payments
+            .filter((p) => p.method === PaymentMethod.CREDIT)
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+          const unpaidBalance = Math.max(0, Number(originalSale.totalAmount) - Number(originalSale.paidAmount));
+          const origDebt = Math.max(creditPaymentsSum, unpaidBalance);
+
+          if (origDebt > 0) {
             const ratio       = totalAmount / Number(originalSale.totalAmount);
-            const debtReduced = Number(creditPayment.amount) * ratio;
+            const debtReduced = origDebt * ratio;
             if (debtReduced > 0) {
-              await tx.customer.update({
+              const customer = await tx.customer.findUnique({
                 where: { id: originalSale.customerId },
-                data:  { totalDebt: { decrement: debtReduced } },
+                select: { totalDebt: true },
               });
+              if (customer) {
+                const newDebt = Math.max(0, Number(customer.totalDebt) - debtReduced);
+                await tx.customer.update({
+                  where: { id: originalSale.customerId },
+                  data:  { totalDebt: newDebt },
+                });
+              }
             }
           }
         }

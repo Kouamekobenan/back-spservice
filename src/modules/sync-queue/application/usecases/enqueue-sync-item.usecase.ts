@@ -19,12 +19,17 @@ export class EnqueueSyncItemUseCase {
   ) {}
 
   async execute(dto: EnqueueSyncItemDto): Promise<SyncQueueItemResponseDto> {
-    // 1. Vérifier l'unicité (localId + entityType) pour éviter les doublons d'enqueue
+    // 1. Vérifier l'unicité (localId + entityType) de façon idempotente
+    // Si le client renvoie le même item après une coupure réseau, on retourne l'item existant
+    // (et s'il était en ERROR, on le remet en PENDING pour retraitement).
     const existing = await this.repo.findByLocalId(dto.localId, dto.entityType);
     if (existing) {
-      throw new ConflictException(
-        `Un item avec localId="${dto.localId}" et entityType="${dto.entityType}" est déjà dans la file (status: ${existing.syncStatus})`,
-      );
+      if (existing.isError() && existing.canRetry()) {
+        existing.resetForRetry();
+        const savedExisting = await this.repo.save(existing);
+        return toResponseDto(savedExisting);
+      }
+      return toResponseDto(existing);
     }
 
     // 2. Créer l'entité domaine (valide les invariants)

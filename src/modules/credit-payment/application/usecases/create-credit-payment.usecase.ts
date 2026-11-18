@@ -49,22 +49,7 @@ export class CreateCreditPaymentUseCase {
             localId: data.localId,
           },
         });
-        // AUDIT
-         this.eventEmitter.emit(
-           'audit.updated',
-           new AuditEvent(
-             AuditAction.CREATE,
-             'Credit',
-             result.id,
-             data.reference || 'system-user',
-             data.customerId,
-             result,
-             payment,
-             undefined,
-             undefined,
-             `Paiement crédit : ${result.method} avec une somme de: ${result.amount}`,
-           ),
-         );
+
         // Mettre à jour la dette du client (soustraction)
         await tx.customer.update({
           where: { id: data.customerId },
@@ -77,6 +62,23 @@ export class CreateCreditPaymentUseCase {
 
         return payment;
       });
+
+      // AUDIT (après validation de la transaction)
+      this.eventEmitter.emit(
+        'audit.updated',
+        new AuditEvent(
+          AuditAction.CREATE,
+          'Credit',
+          result.id,
+          data.reference || 'system-user',
+          data.customerId,
+          { totalDebtBefore: customer.totalDebt },
+          result,
+          undefined,
+          undefined,
+          `Paiement crédit : ${result.method} avec une somme de: ${result.amount}`,
+        ),
+      );
 
       return this.mapper.toApplication(result);
     } catch (error) {

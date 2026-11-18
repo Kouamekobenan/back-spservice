@@ -33,8 +33,10 @@ export class PrismaCashSessionRepository implements ICashSessionRepository {
   }
 
   async findById(id: string): Promise<CashSession | null> {
-    const session = await this.prisma.cashSession.findUnique({
-      where: { id },
+    const session = await this.prisma.cashSession.findFirst({
+      where: {
+        OR: [{ id }, { localId: id }],
+      },
     });
     return session ? this.mapper.toDomain(session) : null;
   }
@@ -95,12 +97,47 @@ export class PrismaCashSessionRepository implements ICashSessionRepository {
 
     if (!session) return 0;
 
-    const salesSum = await this.prisma.sale.aggregate({
-      where: { cashSessionId: sessionId, status: 'COMPLETED' },
-      _sum: { paidAmount: true },
+    // 1. Ventes valides (COMPLETED ou PARTIALLY_PAID) : uniquement les espèces (CASH) nettes du rendu monnaie
+    const activeSales = await this.prisma.sale.findMany({
+      where: {
+        cashSessionId: sessionId,
+        status: { in: ['COMPLETED', 'PARTIALLY_PAID'] },
+      },
+      select: {
+        changeAmount: true,
+        payments: {
+          where: { method: 'CASH' },
+          select: { amount: true },
+        },
+      },
     });
 
-    const totalPaid = salesSum._sum.paidAmount ? Number(salesSum._sum.paidAmount) : 0;
-    return Number(session.openingBalance) + totalPaid;
+    const totalCashIn = activeSales.reduce((sum, sale) => {
+      const cashReceived = sale.payments.reduce((s, p) => s + Number(p.amount), 0);
+      if (cashReceived <= 0) return sum;
+      const netCash = Math.max(0, cashReceived - Number(sale.changeAmount ?? 0));
+      return sum + netCash;
+    }, 0);
+
+    // 2. Ventes remboursées (REFUNDED) rattachées à la session : déduire les remboursements en espèces (CASH)
+    const refundedSales = await this.prisma.sale.findMany({
+      where: {
+        cashSessionId: sessionId,
+        status: 'REFUNDED',
+      },
+      select: {
+        payments: {
+          where: { method: 'CASH' },
+          select: { amount: true },
+        },
+      },
+    });
+
+    const totalCashRefunded = refundedSales.reduce((sum, sale) => {
+      const cashOut = sale.payments.reduce((s, p) => s + Number(p.amount), 0);
+      return sum + cashOut;
+    }, 0);
+
+    return Number(session.openingBalance) + totalCashIn - totalCashRefunded;
   }
 }

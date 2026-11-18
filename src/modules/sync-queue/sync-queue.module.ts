@@ -53,9 +53,10 @@ import { SyncModule } from '../sync/sync.module.js';
     SyncQueueScheduler,
   ],
   exports: [
-    // Exporté pour que d'autres modules puissent enqueuer des items
+    // Exporté pour que d'autres modules puissent enqueuer ou traiter des items
     EnqueueSyncItemUseCase,
     GetSyncQueueUseCase,
+    ProcessSyncQueueUseCase,
     'ISyncQueueRepository',
   ],
 })

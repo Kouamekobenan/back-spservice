@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, StockMovementReason, PaymentMethod } from '@prisma/client';
 import type { ISyncQueueRepository } from '../../domain/interfaces/sync-queue.repository';
 import { SyncQueueItem, SyncOperation } from '../../domain/entities/sync-queue.entity';
 import { ProcessSyncResultDto } from '../dtos/sync-queue.dto';
@@ -22,101 +22,234 @@ async function dispatchSyncItem(
         const existing = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
 
-        // Sépare les relations imbriquées du reste du payload
         const { items: rawItems = [], payments: rawPayments = [], ...saleData } = payload as any;
 
-        // Résout cashSessionId local → UUID serveur si la session a été créée hors-ligne
-        if (saleData['cashSessionId']) {
-          const sessionItem = await tx.syncQueue.findFirst({
-            where: { localId: saleData['cashSessionId'], entityType: 'CashSession' },
-            select: { resolvedId: true },
+        // 1. Résout cashSessionId local → UUID serveur (via table cash_sessions en priorité, puis sync_queue)
+        let resolvedCashSessionId: string | null = saleData['cashSessionId'] ?? null;
+        if (resolvedCashSessionId) {
+          const directSession = await tx.cashSession.findFirst({
+            where: { OR: [{ id: resolvedCashSessionId }, { localId: resolvedCashSessionId }] },
+            select: { id: true },
           });
-          if (sessionItem?.resolvedId) {
-            saleData['cashSessionId'] = sessionItem.resolvedId;
-          } else if (sessionItem) {
-            throw new Error(
-              `CashSession "${saleData['cashSessionId']}" pas encore synchronisée — la vente sera retraitée après la session`,
-            );
+          if (directSession) {
+            resolvedCashSessionId = directSession.id;
+          } else {
+            const sessionItem = await tx.syncQueue.findFirst({
+              where: { localId: resolvedCashSessionId, entityType: 'CashSession' },
+              select: { resolvedId: true, syncStatus: true },
+            });
+            if (sessionItem?.resolvedId) {
+              resolvedCashSessionId = sessionItem.resolvedId;
+            } else if (sessionItem && sessionItem.syncStatus === 'PENDING') {
+              throw new Error(
+                `CashSession "${resolvedCashSessionId}" pas encore synchronisée — la vente sera retraitée après la session`,
+              );
+            } else {
+              // Session orpheline ou supprimée : ne pas bloquer la vente en caisse
+              resolvedCashSessionId = null;
+            }
           }
-          // Pas de sessionItem = cashSessionId est déjà un UUID serveur (session ouverte en ligne)
         }
 
-        // Génère receiptNumber si absent (ventes créées hors-ligne)
-        if (!saleData['receiptNumber']) {
-          const today = new Date();
-          const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+        // 2. Résout customerId local → UUID serveur
+        let resolvedCustomerId: string | null = saleData['customerId'] ?? null;
+        if (resolvedCustomerId) {
+          const directCustomer = await tx.customer.findFirst({
+            where: { OR: [{ id: resolvedCustomerId }, { localId: resolvedCustomerId }] },
+            select: { id: true },
+          });
+          if (directCustomer) {
+            resolvedCustomerId = directCustomer.id;
+          } else {
+            const customerItem = await tx.syncQueue.findFirst({
+              where: { localId: resolvedCustomerId, entityType: 'Customer' },
+              select: { resolvedId: true, syncStatus: true },
+            });
+            if (customerItem?.resolvedId) {
+              resolvedCustomerId = customerItem.resolvedId;
+            } else if (customerItem && customerItem.syncStatus === 'PENDING') {
+              throw new Error(
+                `Customer "${resolvedCustomerId}" pas encore synchronisé — la vente sera retraitée après le client`,
+              );
+            } else {
+              resolvedCustomerId = null;
+            }
+          }
+        }
+
+        // 3. Génère receiptNumber si absent (ventes créées hors-ligne)
+        let receiptNumber: string = saleData['receiptNumber'];
+        if (!receiptNumber) {
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+          const startOfDay = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+          );
           const count = await tx.sale.count({
             where: {
               shopId: saleData['shopId'],
-              createdAt: { gte: new Date(today.setHours(0, 0, 0, 0)) },
+              createdAt: { gte: startOfDay },
             },
           });
-          saleData['receiptNumber'] = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+          receiptNumber = `SP-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
         }
 
-        // Calcule totalAmount depuis les items si absent (ventes créées hors-ligne)
-        if (saleData['totalAmount'] == null) {
-          const subtotal = (rawItems as Array<any>).reduce(
-            (sum: number, it: any) =>
-              sum + Number(it.quantity) * Number(it.unitPrice) - Number(it.discount ?? 0),
-            0,
-          );
-          const discountAmount = Number(saleData['discountAmount'] ?? 0);
-          const taxAmount      = Number(saleData['taxAmount'] ?? 0);
-          saleData['subtotal']    = saleData['subtotal'] ?? subtotal;
-          saleData['totalAmount'] = Math.max(0, subtotal - discountAmount + taxAmount);
-        }
-
-        // Enrichit les items: récupère productName depuis la DB et calcule totalPrice
+        // 4. Résout chaque produit (par id ou localId) et enrichit les lignes de vente
         const enrichedItems = await Promise.all(
           (rawItems as Array<any>).map(async (it: any) => {
-            let productName: string = it.productName;
-            let productSku: string | null = it.productSku ?? null;
-            if (!productName) {
-              const product = await tx.product.findUnique({
-                where: { id: it.productId },
-                select: { name: true, sku: true },
-              });
-              productName = product?.name ?? 'Produit inconnu';
-              productSku  = productSku ?? product?.sku ?? null;
+            const product = await tx.product.findFirst({
+              where: { OR: [{ id: it.productId }, { localId: it.productId }] },
+              select: { id: true, name: true, sku: true, stockQty: true },
+            });
+            if (!product) {
+              throw new Error(`Produit "${it.productId}" introuvable pour la vente "${localId}"`);
             }
+            const qty = Number(it.quantity);
+            const unitPrice = Number(it.unitPrice);
+            const discount = Number(it.discount ?? 0);
             const totalPrice =
-              it.totalPrice ??
-              Number(it.quantity) * Number(it.unitPrice) - Number(it.discount ?? 0);
+              it.totalPrice != null
+                ? Number(it.totalPrice)
+                : Math.max(0, (unitPrice - discount) * qty);
+
             return {
-              productId:   it.productId,
-              productName,
-              productSku,
-              quantity:    it.quantity,
-              unitPrice:   it.unitPrice,
-              discount:    it.discount ?? 0,
+              productId: product.id,
+              productName: it.productName || product.name || 'Produit inconnu',
+              productSku: it.productSku ?? product.sku ?? null,
+              quantity: qty,
+              unitPrice,
+              discount,
               totalPrice,
+              currentStockQty: Number(product.stockQty),
             };
           }),
         );
 
+        // 5. Calcul cohérent des montants et du statut
+        const computedSubtotal = enrichedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+        const subtotal = saleData['subtotal'] != null ? Number(saleData['subtotal']) : computedSubtotal;
+        const discountAmount = Number(saleData['discountAmount'] ?? 0);
+        const taxAmount = Number(saleData['taxAmount'] ?? 0);
+        const totalAmount =
+          saleData['totalAmount'] != null
+            ? Number(saleData['totalAmount'])
+            : Math.max(0, subtotal - discountAmount + taxAmount);
+
+        const normalizedPayments = (rawPayments as Array<any>).map((p: any) => ({
+          method: p.method as PaymentMethod,
+          amount: Number(p.amount),
+          reference: p.reference ?? null,
+        }));
+
+        const totalTendered = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
+        const creditAmount = normalizedPayments
+          .filter((p) => p.method === PaymentMethod.CREDIT)
+          .reduce((sum, p) => sum + p.amount, 0);
+        const nonCreditTendered = totalTendered - creditAmount;
+
+        const amountDueImmediate = Math.max(0, totalAmount - creditAmount);
+        const changeAmount =
+          saleData['changeAmount'] != null
+            ? Number(saleData['changeAmount'])
+            : Math.max(0, nonCreditTendered - amountDueImmediate);
+        const paidAmount =
+          saleData['paidAmount'] != null
+            ? Number(saleData['paidAmount'])
+            : Math.max(0, nonCreditTendered - changeAmount);
+
+        const totalDebtToAdd = creditAmount + Math.max(0, totalAmount - totalTendered);
+        const status =
+          saleData['status'] ?? (totalDebtToAdd > 0 && resolvedCustomerId ? 'PARTIALLY_PAID' : 'COMPLETED');
+
+        // 6. Création de la vente avec filtrage strict des colonnes (évite PrismaClientValidationError)
         const created = await tx.sale.create({
           data: {
-            ...saleData,
+            receiptNumber,
+            status,
+            subtotal,
+            discountAmount,
+            taxAmount,
+            totalAmount,
+            paidAmount,
+            changeAmount,
+            notes: saleData['notes'] ?? null,
+            shopId: saleData['shopId'],
+            userId: saleData['userId'],
+            customerId: resolvedCustomerId,
+            cashSessionId: resolvedCashSessionId,
+            originalSaleId: saleData['originalSaleId'] ?? null,
+            ...(saleData['createdAt'] ? { createdAt: new Date(saleData['createdAt']) } : {}),
             localId,
             syncStatus: 'SYNCED',
-            items:    { create: enrichedItems },
+            items: {
+              create: enrichedItems.map(({ currentStockQty: _s, ...itemProps }) => itemProps),
+            },
             payments: {
-              create: (rawPayments as Array<any>).map((p: any) => ({
-                method:    p.method,
-                amount:    p.amount,
-                reference: p.reference ?? null,
-              })),
+              create: normalizedPayments,
             },
           },
           select: { id: true },
         });
+
+        // 7. Mise à jour du stock et création des mouvements (si non déjà envoyés séparément)
+        const runningStock = new Map<string, number>();
+        for (const it of enrichedItems) {
+          if (!runningStock.has(it.productId)) {
+            runningStock.set(it.productId, it.currentStockQty);
+          }
+        }
+
+        for (const it of enrichedItems) {
+          const existingMovement = await tx.stockMovement.findFirst({
+            where: {
+              productId: it.productId,
+              OR: [{ saleId: created.id }, { saleId: localId }],
+            },
+            select: { id: true },
+          });
+
+          if (!existingMovement) {
+            const stockBefore = runningStock.get(it.productId) ?? 0;
+            const stockAfter = stockBefore - it.quantity;
+            runningStock.set(it.productId, stockAfter);
+
+            await Promise.all([
+              tx.product.update({
+                where: { id: it.productId },
+                data: { stockQty: { decrement: it.quantity } },
+              }),
+              tx.stockMovement.create({
+                data: {
+                  productId: it.productId,
+                  shopId: saleData['shopId'],
+                  userId: saleData['userId'],
+                  reason: StockMovementReason.SALE,
+                  quantity: -it.quantity,
+                  stockBefore,
+                  stockAfter,
+                  saleId: created.id,
+                  syncStatus: 'SYNCED',
+                },
+              }),
+            ]);
+          }
+        }
+
+        // 8. Mise à jour de la dette client si vente à crédit ou partiellement payée
+        if (totalDebtToAdd > 0 && resolvedCustomerId) {
+          await tx.customer.update({
+            where: { id: resolvedCustomerId },
+            data: { totalDebt: { increment: totalDebtToAdd } },
+          });
+        }
+
         return created.id;
       }
       if (operation === SyncOperation.UPDATE) {
         const target = await tx.sale.findFirst({ where: { localId }, select: { id: true } });
         if (!target) throw new Error(`Sale localId="${localId}" introuvable pour UPDATE`);
-        await tx.sale.update({ where: { id: target.id }, data: { ...(payload as any), syncStatus: 'SYNCED' } });
+        const { id: _id, items: _items, payments: _payments, ...updateData } = payload as any;
+        await tx.sale.update({ where: { id: target.id }, data: { ...updateData, syncStatus: 'SYNCED' } });
         return target.id;
       }
       if (operation === SyncOperation.DELETE) {
@@ -276,10 +409,36 @@ async function dispatchSyncItem(
       if (operation === SyncOperation.CREATE) {
         const existing = await tx.creditPayment.findFirst({ where: { localId }, select: { id: true } });
         if (existing) return existing.id;
+
+        const rawPayload = payload as any;
+        const customer = await tx.customer.findFirst({
+          where: { OR: [{ id: rawPayload['customerId'] }, { localId: rawPayload['customerId'] }] },
+          select: { id: true, totalDebt: true },
+        });
+        if (!customer) {
+          throw new Error(`Client "${rawPayload['customerId']}" introuvable pour CreditPayment "${localId}"`);
+        }
+
+        const amount = Number(rawPayload['amount']);
         const created = await tx.creditPayment.create({
-          data: { ...(payload as any), localId, syncStatus: 'SYNCED' },
+          data: {
+            customerId: customer.id,
+            amount,
+            method: rawPayload['method'] as PaymentMethod,
+            reference: rawPayload['reference'] ?? null,
+            notes: rawPayload['notes'] ?? null,
+            localId,
+            syncStatus: 'SYNCED',
+          },
           select: { id: true },
         });
+
+        const newDebt = Math.max(0, Number(customer.totalDebt) - amount);
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: { totalDebt: newDebt },
+        });
+
         return created.id;
       }
       break;

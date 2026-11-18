@@ -6,8 +6,10 @@ import { GetActiveCashSessionUseCase } from './application/usecases/get-active-c
 import { PrismaCashSessionRepository } from './infrastructure/repository/prisma-cash-session.repository.js';
 import { CashSessionMapper } from './domain/mappers/cash-session.mapper.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { SyncQueueModule } from '../sync-queue/sync-queue.module.js';
 
 @Module({
+  imports: [SyncQueueModule],
   controllers: [CashSessionController],
   providers: [
     PrismaService,
