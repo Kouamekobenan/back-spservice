@@ -458,6 +458,92 @@ async function dispatchSyncItem(
       break;
     }
 
+    // ── Quote (Devis / Proforma — aucun impact stock ni caisse) ──
+    case 'Quote': {
+      const quoteTx = (tx as any).quote;
+      if (operation === SyncOperation.CREATE) {
+        const existing = await quoteTx.findFirst({ where: { localId }, select: { id: true } });
+        if (existing) return existing.id;
+
+        const { items: rawItems = [], ...quoteData } = payload as any;
+        let quoteNumber: string = quoteData['quoteNumber'];
+        if (!quoteNumber) {
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+          const startOfDay = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+          );
+          const count = await quoteTx.count({
+            where: { shopId: quoteData['shopId'], createdAt: { gte: startOfDay } },
+          });
+          quoteNumber = `DEV-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+        }
+
+        const enrichedItems = await Promise.all(
+          (rawItems as Array<any>).map(async (it: any) => {
+            const product = await tx.product.findFirst({
+              where: { OR: [{ id: it.productId }, { localId: it.productId }] },
+              select: { id: true, name: true, sku: true, sellingPrice: true },
+            });
+            if (!product) {
+              throw new Error(`Produit "${it.productId}" introuvable pour le devis "${localId}"`);
+            }
+            const qty = Number(it.quantity);
+            const unitPrice = it.unitPrice != null ? Number(it.unitPrice) : Number(product.sellingPrice);
+            const discount = Number(it.discount ?? 0);
+            const totalPrice =
+              it.totalPrice != null ? Number(it.totalPrice) : Math.max(0, (unitPrice - discount) * qty);
+            return {
+              productId: product.id,
+              productName: it.productName || product.name,
+              productSku: it.productSku ?? product.sku ?? null,
+              quantity: qty,
+              unitPrice,
+              discount,
+              totalPrice,
+            };
+          }),
+        );
+
+        const subtotal =
+          quoteData['subtotal'] != null
+            ? Number(quoteData['subtotal'])
+            : enrichedItems.reduce((s, it) => s + it.totalPrice, 0);
+        const discountAmount = Number(quoteData['discountAmount'] ?? 0);
+        const taxAmount = Number(quoteData['taxAmount'] ?? 0);
+        const totalAmount =
+          quoteData['totalAmount'] != null
+            ? Number(quoteData['totalAmount'])
+            : Math.max(0, subtotal - discountAmount + taxAmount);
+
+        const created = await quoteTx.create({
+          data: {
+            quoteNumber,
+            status: quoteData['status'] ?? 'DRAFT',
+            customerId: quoteData['customerId'] ?? null,
+            customerName: quoteData['customerName'] ?? null,
+            customerPhone: quoteData['customerPhone'] ?? null,
+            customerEmail: quoteData['customerEmail'] ?? null,
+            customerAddress: quoteData['customerAddress'] ?? null,
+            subtotal,
+            discountAmount,
+            taxAmount,
+            totalAmount,
+            validUntil: quoteData['validUntil'] ? new Date(quoteData['validUntil']) : null,
+            notes: quoteData['notes'] ?? null,
+            shopId: quoteData['shopId'],
+            userId: quoteData['userId'],
+            localId,
+            syncStatus: 'SYNCED',
+            items: { create: enrichedItems },
+          },
+          select: { id: true },
+        });
+        return created.id;
+      }
+      break;
+    }
+
     default:
       throw new Error(`entityType non supporté: "${entityType}"`);
   }

@@ -269,13 +269,4 @@ export class AuthController {
     });
     return { message: `Mail de test envoyé à ${email}` };
   }
-
-  // 🔒 3. Reset Password (UseCase principal)
-  // @Public()
-  // @Post('reset-password')
-  // @ApiOperation({ summary: 'Réinitialiser le mot de passe avec OTP' })
-  // @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
-  // async resetPassword(@Body() dto: ResetPasswordDto) {
-  //   return await this.resetPasswordUsecase.execute(dto);
-  // }
 }

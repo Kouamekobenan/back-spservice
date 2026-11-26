@@ -15,6 +15,7 @@ import { CustomerModule } from './modules/customer/customer.module.js';
 import { CreditPaymentModule } from './modules/credit-payment/credit-payment.module.js';
 import { CashSessionModule } from './modules/cash-session/cash-session.module.js';
 import { SaleModule } from './modules/sale/sale.module.js';
+import { QuoteModule } from './modules/quote/quote.module.js';
 import { SupplierModule } from './modules/supplier/supplier.module.js';
 import { PurchaseOrderModule } from './modules/purchase-order/purchase-order.module.js';
 import { StockTransferModule } from './modules/stock-transfer/stock-transfer.module.js';
@@ -54,6 +55,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CreditPaymentModule,
     CashSessionModule,
     SaleModule,
+    QuoteModule,
     SupplierModule,
     PurchaseOrderModule,
     StockTransferModule,

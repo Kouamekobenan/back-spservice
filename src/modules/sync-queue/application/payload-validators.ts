@@ -117,6 +117,13 @@ function validateStockTransfer(op: SyncOperation, payload: Payload): void {
 
 // ── Point d'entrée unique ─────────────────────────────────────────
 
+function validateQuote(op: SyncOperation, payload: Payload): void {
+  if (op === SyncOperation.CREATE) {
+    assertField(payload, 'shopId', 'Quote');
+    assertField(payload, 'userId', 'Quote');
+  }
+}
+
 export function validateSyncPayload(
   entityType: string,
   operation: SyncOperation,
@@ -124,6 +131,7 @@ export function validateSyncPayload(
 ): void {
   switch (entityType) {
     case 'Sale':          return validateSale(operation, payload);
+    case 'Quote':         return validateQuote(operation, payload);
     case 'Product':       return validateProduct(operation, payload);
     case 'Customer':      return validateCustomer(operation, payload);
     case 'Expense':       return validateExpense(operation, payload);

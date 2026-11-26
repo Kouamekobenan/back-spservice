@@ -131,6 +131,7 @@ model Shop {
   usersAccess    UserShopAccess[]
   products       Product[]
   sales          Sale[]
+  quotes         Quote[]
   expenses       Expense[]
   cashSessions   CashSession[]
   purchaseOrders PurchaseOrder[]
@@ -160,6 +161,7 @@ model User {
 
   shopAccesses   UserShopAccess[]
   sales          Sale[]
+  quotes         Quote[]
   cashSessions   CashSession[]
   auditLogs      AuditLog[]
   stockMovements StockMovement[]
@@ -249,6 +251,7 @@ model Product {
   components     ProductComponent[] @relation("ComposedProduct")
   usedIn         ProductComponent[] @relation("ComponentProduct")
   saleItems      SaleItem[]
+  quoteItems     QuoteItem[]
   stockMovements StockMovement[]
   purchaseItems  PurchaseOrderItem[]
   batches        ProductBatch[]
@@ -306,6 +309,7 @@ model Customer {
   notes       String?
 
   sales          Sale[]
+  quotes         Quote[]
   creditPayments CreditPayment[]
 
   syncStatus SyncStatus @default(SYNCED)
@@ -667,4 +671,64 @@ model ShopSetting {
 
   @@unique([shopId, key])
   @@map("shop_settings")
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+model Quote {
+  id              String      @id @default(uuid())
+  quoteNumber     String
+  status          QuoteStatus @default(DRAFT)
+  customerId      String?
+  customerName    String?
+  customerPhone   String?
+  customerEmail   String?
+  customerAddress String?
+  subtotal        Float
+  discountAmount  Float       @default(0)
+  taxAmount       Float       @default(0)
+  totalAmount     Float
+  validUntil      DateTime?
+  notes           String?
+  shopId          String
+  userId          String
+  convertedSaleId String?
+  syncStatus      SyncStatus  @default(SYNCED)
+  localId         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           QuoteItem[]
+  shop            Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user            User        @relation(fields: [userId], references: [id])
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+
+  @@index([shopId, createdAt])
+  @@index([shopId, status])
+  @@index([customerId])
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id          String  @id @default(uuid())
+  quoteId     String
+  productId   String
+  productName String
+  productSku  String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float   @default(0)
+  totalPrice  Float
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+
+  @@index([quoteId])
+  @@index([productId])
+  @@map("quote_items")
 }

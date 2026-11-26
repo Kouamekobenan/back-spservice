@@ -42,6 +42,7 @@ export enum ConflictResolutionStrategy {
 export class EntityType {
   private static readonly ALLOWED = new Set([
     'Sale',
+    'Quote',
     'StockMovement',
     'Product',
     'Customer',
