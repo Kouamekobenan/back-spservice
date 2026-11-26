@@ -12,6 +12,15 @@ const fmt = (n: number, currency = 'XOF') =>
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(d);
 
+/** Échappe les caractères HTML pour éviter toute injection dans le PDF généré. */
+const esc = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Brouillon',
   SENT: 'Envoyé',
@@ -41,7 +50,16 @@ export class QuotePdfGenerator {
   }
 
   private buildHtml(ctx: QuotePrintContext): string {
-    const { quote, shop, authorName } = ctx;
+    const { quote } = ctx;
+    const shop = {
+      ...ctx.shop,
+      name: esc(ctx.shop.name),
+      address: ctx.shop.address ? esc(ctx.shop.address) : ctx.shop.address,
+      phone: ctx.shop.phone ? esc(ctx.shop.phone) : ctx.shop.phone,
+      email: ctx.shop.email ? esc(ctx.shop.email) : ctx.shop.email,
+      taxId: ctx.shop.taxId ? esc(ctx.shop.taxId) : ctx.shop.taxId,
+    };
+    const authorName = ctx.authorName ? esc(ctx.authorName) : ctx.authorName;
     const cur = shop.currency || 'XOF';
     const items = quote.getItems();
 
@@ -51,8 +69,8 @@ export class QuotePdfGenerator {
       <tr>
         <td class="text-center">${index + 1}</td>
         <td>
-          <div class="prod-name">${item.productName}</div>
-          ${item.productSku ? `<div class="prod-sku">Réf : ${item.productSku}</div>` : ''}
+          <div class="prod-name">${esc(item.productName)}</div>
+          ${item.productSku ? `<div class="prod-sku">Réf : ${esc(item.productSku)}</div>` : ''}
         </td>
         <td class="text-right">${item.quantity}</td>
         <td class="text-right">${fmt(item.unitPrice, cur)}</td>
@@ -139,11 +157,11 @@ export class QuotePdfGenerator {
       </div>
       <div class="party-card">
         <div class="party-title">Adressé au client</div>
-        <div class="party-name">${quote.getCustomerName() || 'Client Comptoir'}</div>
+        <div class="party-name">${esc(quote.getCustomerName() || 'Client Comptoir')}</div>
         <div class="party-detail">
-          ${quote.getCustomerPhone() ? `<div>Tél : ${quote.getCustomerPhone()}</div>` : ''}
-          ${quote.getCustomerEmail() ? `<div>Email : ${quote.getCustomerEmail()}</div>` : ''}
-          ${quote.getCustomerAddress() ? `<div>Adresse : ${quote.getCustomerAddress()}</div>` : ''}
+          ${quote.getCustomerPhone() ? `<div>Tél : ${esc(quote.getCustomerPhone())}</div>` : ''}
+          ${quote.getCustomerEmail() ? `<div>Email : ${esc(quote.getCustomerEmail())}</div>` : ''}
+          ${quote.getCustomerAddress() ? `<div>Adresse : ${esc(quote.getCustomerAddress())}</div>` : ''}
         </div>
       </div>
     </div>
@@ -167,7 +185,7 @@ export class QuotePdfGenerator {
     <div class="totals-section">
       <div class="notes-box">
         <div class="notes-title">Conditions & Notes</div>
-        <div>${quote.getNotes() || 'Ce devis est établi à titre indicatif et n’entraîne aucune réservation ni déduction automatique de stock avant validation et règlement.'}</div>
+        <div>${quote.getNotes() ? esc(quote.getNotes()) : 'Ce devis est établi à titre indicatif et n’entraîne aucune réservation ni déduction automatique de stock avant validation et règlement.'}</div>
       </div>
       <div class="totals-table">
         <div class="totals-row">

@@ -112,12 +112,22 @@ export class QuoteController {
     description: 'Génère un document PDF A4 prêt à être imprimé ou envoyé au client.',
   })
   @ApiParam({ name: 'id', description: 'UUID du devis' })
+  @ApiQuery({
+    name: 'download',
+    required: false,
+    description: "Mettre '1' ou 'true' pour forcer le téléchargement (attachment). Sinon le PDF s'ouvre dans le navigateur (inline).",
+  })
   @ApiResponse({ status: 200, description: 'Fichier PDF du devis.' })
-  async downloadPdf(@Param('id') id: string, @Res() res: Response): Promise<void> {
+  async downloadPdf(
+    @Param('id') id: string,
+    @Query('download') download: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
     const { buffer, filename } = await this.generatePdfUseCase.execute(id);
+    const forceDownload = download === '1' || download === 'true';
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `${forceDownload ? 'attachment' : 'inline'}; filename="${filename}"`,
       'Content-Length': buffer.length,
     });
     res.end(buffer);
